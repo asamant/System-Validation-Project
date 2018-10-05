@@ -1,0 +1,11 @@
+System Validation project feedback action items:
+
+1. Move system components to a different chapter; it shouldn't be included in system requirements.
+2. Need to explicitly what are the state controllers and what the function of each controller is.
+3. In the "components" chapter we also need to include all the assumptions we're making, including the precedence of airlocks/robots.
+4. Include a requirement that states that the system should be deadlock-free. It should be verifiable.
+5. Distinguish explicitly between safety and liveness requirements.
+6. Reformulate some of the requirements to be more explicitly defining in terms of their behaviour. The requirements should be verifiable and not be trivial.
+7. Rethink the "switch/continue" interaction in the architecture.
+8. The "user inputs" shouldn't really be user inputs - they can be treated as external interactions with the system and need not be modelled per se as part of the system.
+9. Mention the number of wafers that can be accommodated in the stacks.
