@@ -1,0 +1,74 @@
+
+% First version of wafer projection system
+% This file models the system's components
+
+sort
+    % Multi-Objects
+    InputStackID    = struct I1 | I2;
+    OutputStackID   = struct O1 | O2;
+    RobotID         = struct R1 | R2 | R3;
+    DoorID          = struct DI1 | DI2 | DO1 | DO2;
+    AirlockID       = struct A1 | A2;
+
+map
+    % InputStack -> Robot
+    matchInputStackRobot:   InputStackID -> RobotID;
+
+    % OutputStack -> Robot
+    matchOutputStackRobot:   OutputStackID -> RobotID;
+
+eqn
+    % InputStack -> Robot
+    matchInputStackRobot(I1) = R1;
+    matchInputStackRobot(I2) = R2;
+
+    % OutputStack -> Robot
+    matchOutputStackRobot(O1) = R1;
+    matchOutputStackRobot(O2) = R2;
+
+act
+    % External commands
+    user_fillStack:     InputStackID;
+    user_emptyStack:    OutputStackID;
+
+    % Communication
+    s_stackIsEmpty,
+    r_stackIsEmpty,
+    c_stackIsEmpty:             InputStackID    #   Bool;
+
+    s_stackIsFull,
+    r_stackIsFull,
+    c_stackIsFull:              OutputStackID   #   Bool;
+
+    s_pickUpWaferInputStack,
+    r_pickUpWaferInputStack,
+    c_pickUpWaferInputStack:    RobotID;
+
+    s_dropWaferOutputStack,
+    r_dropWaferOutputStack,
+    c_dropWaferOutputStack:    RobotID;
+
+proc
+    InputStack(id: InputStackID, wafers: Int) =
+     % If stack is not empty, robot can pick up a wafer
+     (wafers > 0) -> r_pickUpWaferInputStack(matchInputStackRobot(id)) . InputStack(id, (wafers - 1))
+     % If stack is not empty, send not empty state
+    + (wafers > 0) -> s_stackIsEmpty(id, false) . InputStack()
+     % if stack is empty, robot cannot pick up a wafer, send empty state
+    + (wafers == 0) -> s_stackIsEmpty(id, true) . InputStack()
+     % if stack is empty, a user can fill it
+    + (wafers == 0) -> user_fillStack(id) . InputStack(id, 4);
+
+    OutputStack(id: OutputStackID, wafers: Int) =
+     % If stack is not full, robot can drop up a wafer
+     (wafers < 4) -> r_dropWaferOutputStack(matchOutputStackRobot(id)) . OutputStack(id, (wafers + 1))
+     % If stack is not full, send not full state
+    + (wafers < 4) -> s_stackIsFull(id, false) . OutputStack()
+     % if stack is full, robot cannot pick drop a wafer, send full state
+    + (wafers == 4) -> s_stackIsFull(id, true) . OutputStack()
+     % if stack is full, a user can empty it
+    + (wafers == 4) -> user_emptyStack(id) . OutputStack(id, 0);
+
+init
+        InputStack(I1, 4) || OutputStack(O1, 0);
+

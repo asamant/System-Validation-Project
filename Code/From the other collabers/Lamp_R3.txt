@@ -1,0 +1,65 @@
+
+
+sort 
+Waferpresent = struct wafer_present | wafer_absent
+DoorState = struct OPEN | CLOSED
+AirlockID 	  = struct A1 | A2  
+Waferready = struct  READY | NOTREADY
+Waferstate = struct WAFER | NOWAFER
+Pickfromwhere = struct A1 | A2 |DON'TCARE 
+% Loc = struct A1 | A2 | Lamp                          & might not need this
+Lampstate = ON | OFF
+
+r_comm_status_A1: Waferstate
+r_comm_status_A2: Waferstate
+r_comm_waferstatus_A1: Waferready
+r_comm_waferstatus_A2: Waferready
+r_comm_door_DI1: doorState
+r_comm_door_DI2: doorState
+r_comm_Lamp_waferstatus: Waferstate
+Dropwafer_Lamp
+Pickwafer_Lamp
+Pick_wafer_in:AirLock
+Drop_wafer_in:AirLock
+r_lampState : Lampstate
+
+
+Lamp(s: Lampstate, w:Waferstate) =
+% Has wafer inside, project wafer
+((s == OFF && w == WAFER)) -> r_lampState(ON).Lamp(ON,WAFER) +
+% Projection done, Switch off the lamp
+((s == ON && w == WAFER)) -> r_lampState(OFF).Lamp(OFF,WAFER) 
+
+
+R3(p: Pickfromwhere, l: Location, w:Waferstate, r: Waferready) =
+NON - Deterministic
+%to pick wafer for processing it should be not processed before
+((p==DON'TCARE && l==AirlockID && w == NOWAFER && r == NOTREADY))r_comm_status_A1(WAFER).r_comm_waferstatus_A1(NOTREADY).r_comm_door_DI1(OPEN).Pick_wafer_in(A1).R3(A1,A1,WAFER,NOTREADY) +
+% If no wafer in Lamp , put wafer there !
+((p==A1, l==A1,w==WAFER,r==NOTREADY)) -> r_comm_Lamp_waferstatus(NOWAFER).Dropwafer_Lamp.R3(A1, Lamp,NOWAFER,READY) +
+ % If you are lamp, door open, A1 has no wafer so pich up wafer from lamp
+((P==A1 && 	l==Lamp && w:NOWAFER && r:READY))-> r_comm_status_A1(NOWAFER).r_comm_door_D1(OPEN). Pickwafer_Lamp.R3(A1,Lamp,WAFER,READY) +
+% If no wafer in airlock and door is open and your wafer is ready -----> put it in the airlock
+((p==A1 && l=Lamp && w:WAFER && r:READY)) -> r_comm_status_A1(NOWAFER).r_comm_door_DI1(OPEN).Drop_wafer_in(A1).R3(A1,A1,NOWAFER,NOTREADY)
+
+((p==DON'TCARE && l==AirlockID && w == NOWAFER && r == NOTREADY))r_comm_status_A2(WAFER).r_comm_waferstatus_A2(NOTREADY).r_comm_door_DI2(OPEN).Pick_wafer_in(A2).R3(A2,A2,WAFER,NOTREADY) +
+((p== A2 && l==A2 && w: WAFER && r:NOTREADY))-> r_comm_Lamp_waferstatus(NOWAFER).Dropwafer_Lamp.R3(A2, Lamp,NOWAFER,READY) +
+((P==A2 && 	l==Lamp && w:NOWAFER && r:READY))-> r_comm_status_A2(wafer_absent).r_comm_door_DI2(OPEN). Pickwafer_Lamp.R3(A2,Lamp,WAFER,READY) +
+((p==A2 && l=Lamp && w:WAFER && r:READY)) -> r_comm_status_A2(NOWAFER).r_comm_door_DI2(OPEN).Drop_wafer_in(A2).R3(A2,A2,NOWAFER,NOTREADY);
+
+
+
+
+Lamp(s: Lampstate, w:Waferstate, r: Waferready) = 
+% has no wafer, signal robot to drop wafer
+((s == OFF && w == NOWAFER && r == NOTREADY)) -> r_comm_status_Lamp(dropready).Lamp(OFF,WAFER,NOTREADY) +
+% Has wafer inside, project wafer
+((s == OFF && w == WAFER && r == NOTREADY)) -> r_lampState(ON).Lamp(ON,WAFER,READY) +
+% Projection done, Switch off the lamp
+((s == ON && w == WAFER && r == READY)) -> r_lampState(OFF).Lamp(OFF,WAFER,READY) +
+& Ask Robot to pick up the wafer
+((s == OFF && w == WAFER && r == READY)) -> r_comm_status_Lamp(pickready). Lamp(OFF,NOWAFER,NOTREADY);
+
+
+
+

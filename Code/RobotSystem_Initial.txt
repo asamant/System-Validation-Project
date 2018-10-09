@@ -1,0 +1,131 @@
+
+% First version of wafer projection system
+% This file models the system's components:
+% S Stacks, R Robots, D Doors, A Airlocks
+% L Lamp - maybe; it's only one so I think it's implicit
+
+sort
+	% Multi-Objects
+	InputStackID  = struct I1 | I2;
+	OutputStackID = struct O1 | O2;
+	RobotID		  = struct R1 | R2 | R3; %R3 = Inner robot
+	DoorID		  = struct DI1 | DI2 | DO1 | DO2;
+	AirlockID 	  = struct A1 | A2;
+	Location 	  = struct IS | OS | A | L;
+
+	% States
+	hasWaferState		= struct YES | NO; % Stacks, Airlocks, Lamp
+	doorState 			= struct OPEN | CLOSED;
+	sensorState 		= struct DETECTED | UNDETECTED;	% Maybe use this for airlocks
+	lampState			= struct ON | OFF;
+	inputStackState		= struct EMPTY | NEMPTY;
+	outputStackState	= struct FULL | NFULL;
+
+map
+	% Robot -> Airlock
+	matchAirlock: 	    RobotID -> AirlockID;
+
+	% Robot -> InputStack
+	matchInputStack: 	RobotID -> InputStackID;
+
+	% Robot -> OutputStack
+	matchOutputStack: 	RobotID -> OutputStackID;
+	
+	% PERHAPS NOT REQD Stacks, Airlocks, Lamp -> Location
+	matchInputStackLocation: InputStackID -> Location;
+	matchOutputStackLocation: OutputStackID -> Location;
+	matchAirlockLocation: AirlockID -> Location;
+	% Also match lamp, if reqd
+
+	matchAirlockInnerDoor: AirlockID -> DoorID;
+	matchAirlockOuterDoor: AirlockID -> DoorID;
+
+eqn
+	% Robot -> Airlock
+	matchAirlock(R1) = A1;
+	matchAirlock(R2) = A2;
+	
+	% Airlock -> AirlockInnerDoor
+	matchAirlockInnerDoor(A1) = DI1;
+	matchAirlockInnerDoor(A2) = DI2;
+	
+	% Airlock -> AirlockOuterDoor
+	matchAirlockOuterDoor(A1) = DO1;
+	matchAirlockOuterDoor(A2) = DO2;
+
+	% Robot -> InputStack
+	matchInputStack(R1) = I1;
+	matchInputStack(R2) = I2;
+
+	% Robot -> OutputStack
+	matchOutputStack(R1) = O1;
+	matchOutputStack(R2) = O2;
+	
+	% InputStack -> Location
+	matchInputStackLocation(I1) = IS;
+	matchInputStackLocation(I2) = IS;
+
+	% OutputStack -> Location
+	matchOutputStackLocation(O1) = OS;
+	matchOutputStackLocation(O2) = OS;
+	
+	% Airlock -> Location
+	matchAirlockLocation(A1) = A;
+	matchAirlockLocation(A2) = A;
+	
+act	
+	% External commands
+	user_fillStack: 	InputStackID;
+	user_emptyStack:	OutputStackID;
+	user_repairDoor:	DoorID;
+
+	% Actions
+	a_setDoor 			: DoorID 		# doorState;
+	robot_pickUpWafer	: RobotID;
+	robot_dropWafer		: RobotID;
+
+	% Communication
+	
+	s_pickUpWaferFromInputStack,
+	r_pickUpWaferFromInputStack,
+	comm_pickUpWaferFromInputStack: RobotID # InputStackID;
+
+	s_dropWaferInOutputStack,
+	r_dropWaferInOutputStack,
+	comm_dropWaferInOutputStack: RobotID # OutputStackID;
+
+	s_pickUpWaferFromAirlock,
+	r_pickUpWaferFromAirlock,
+	comm_pickUpWaferFromAirlock: RobotID	#	AirlockID;
+	
+	s_dropWaferInAirlock,
+	r_dropWaferInAirlock,
+	comm_dropWaferInAirlock: RobotID	#	AirlockID;
+	
+	s_inputStackState,
+	r_inputStackState,
+	inputStackState:	InputStackID	#	inputStackState;
+
+	s_outputStackState,
+	r_outputStackState,
+	outputStackState:	OutputStackID	#	outputStackState;
+
+	s_airlockState,
+	r_airlockState,
+	airlockState:		AirlockID		#	hasWaferState;
+
+	s_airlockDoorState,
+	r_airlockDoorState,
+	comm_airlockDoorState: DoorID	#	doorState;
+	
+	
+proc
+	OuterRobotController(rID: RobotID, l:Location, hw: hasWaferState) = 
+	(l==IS && hw==NO) -> r_airlockDoorState(matchAirlockOuterDoor(matchAirlock(rID)), CLOSED).OuterRobotController()
+	+ (l==IS && hw==NO) -> r_inputStackState(matchInputStack(rID), NEMPTY).r_airlockState(matchAirlock(rID), NO).r_airlockDoorState(matchAirlockOuterDoor(matchAirlock(rID)), OPEN).s_pickUpWaferFromInputStack(rID, matchInputStack(rID)).OuterRobotController(l=A, hw=YES)
+	+ (l==A && hw==YES) -> s_dropWaferInAirlock(rID, matchAirlock(rID)).r_airlockDoorState(matchAirlockOuterDoor(matchAirlock(rID)), CLOSED).OuterRobotController(hw = NO)
+	+ (l==A && hw==NO) -> r_airlockDoorState(matchAirlockOuterDoor(matchAirlock(rID)), OPEN).r_airlockState(matchAirlock(rID), YES).s_pickUpWaferFromAirlock(rID, matchAirlock(rID)).OuterRobotController(l=OS, hw = YES)
+	+ (l==OS && hw==YES) -> r_outputStackState(matchOutputStack(rID), NFULL).s_dropWaferInOutputStack(rID, matchOutputStack(rID)).OuterRobotController(l=IS, hw=NO);
+	
+init
+	OuterRobotController(R1, A, NO) || OuterRobotController(R2, OS, YES);

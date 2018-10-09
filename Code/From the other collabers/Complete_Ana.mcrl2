@@ -1,0 +1,171 @@
+
+% First version of wafer projection system
+% This file models the system's components
+
+sort
+    % Multi-Objects
+    InputStackID    = struct I1 | I2;
+    OutputStackID   = struct O1 | O2;
+    RobotID         = struct R1 | R2 | R3;
+    DoorID          = struct DI1 | DI2 | DO1 | DO2;
+    AirlockID       = struct A1 | A2;
+    Location        = struct LI1 | LI2 | LO1 | LO2 | LA1 | LA2;
+
+    % States
+    InputStackState     = struct EMPTY | NEMPTY;
+    OutputStackState    = struct FULL | NFULL;
+    AirlockState        = struct WAFER | NWAFER;
+
+map
+    % InputStack -> Robot
+    matchInputStackRobot:       InputStackID -> RobotID;
+
+    % OutputStack -> Robot
+    matchOutputStackRobot:      OutputStackID -> RobotID;
+
+    % Robot -> InputStack
+    matchRobotInputStack:       RobotID -> InputStackID;
+
+    % Robot -> OutputStack
+    matchRobotOutputStack:      RobotID -> OutputStackID;
+
+    % Robot -> Airlock
+    matchRobotAirlock:          RobotID -> AirlockID;
+
+    % Robot -> Global location
+    matchInputStackLoc:         RobotID -> Location;
+    matchOutputStackLoc:        RobotID -> Location;
+    matchAirlockLoc:            RobotID -> Location;
+
+   % Global location -> Group of locations
+    matchLocInputStack:         Location    -> InputStackID;
+    matchLocOutputStack:        Location    -> OutputStackID;
+    matchLocAirlock:            Location    -> AirlockID;
+
+eqn
+    % InputStack -> Robot
+    matchInputStackRobot(I1) = R1;
+    matchInputStackRobot(I2) = R2;
+
+    % OutputStack -> Robot
+    matchOutputStackRobot(O1) = R1;
+    matchOutputStackRobot(O2) = R2;
+
+    % Robot -> InputStack
+    matchRobotInputStack(R1) = I1;
+    matchRobotInputStack(R2) = I2;
+
+    % Robot -> OutputStack
+    matchRobotOutputStack(R1) = O1;
+    matchRobotOutputStack(R2) = O2;
+
+    % Robot -> Airlock
+    matchRobotAirlock(R1) = A1;
+    matchRobotAirlock(R2) = A2;
+
+    % Robot -> Global location
+    matchInputStackLoc(R1) = LI1;
+    matchInputStackLoc(R2) = LI2;
+
+    matchOutputStackLoc(R1) = LO1;
+    matchOutputStackLoc(R2) = LO2;
+
+    matchAirlockLoc(R1) = LA1;
+    matchAirlockLoc(R2) = LA2;
+
+    % Global location -> Group of locations
+    matchLocInputStack(LI1) = I1;
+    matchLocInputStack(LI2) = I2;
+
+    matchLocOutputStack(LO1) = O1;
+    matchLocOutputStack(LO2) = O2;
+
+    matchLocAirlock(LA1) = A1;
+    matchLocAirlock(LA2) = A2;
+
+act
+    % External commands
+    user_fillStack:             InputStackID;
+    user_emptyStack:            OutputStackID;
+
+    % Communication
+    s_sense_inputStack,
+    r_sense_inputStack,
+    c_sense_inputStack:         InputStackID    #   InputStackState;
+
+    s_sense_outputStack,
+    r_sense_outputStack,
+    c_sense_outputStack:        OutputStackID   #   OutputStackState;
+
+    s_sense_airlock,
+    r_sense_airlock,
+    c_sense_airlock:            AirlockID       #   AirlockState;
+
+    s_pickUpWaferInputStack,
+    r_pickUpWaferInputStack,
+    c_pickUpWaferInputStack:    RobotID;
+
+    s_dropWaferOutputStack,
+    r_dropWaferOutputStack,
+    c_dropWaferOutputStack:     RobotID;
+
+    s_pickUpWaferAirlock,
+    r_pickUpWaferAirlock,
+    c_pickUpWaferAirlock:       RobotID;
+
+    s_dropWaferAirlock,
+    r_dropWaferAirlock,
+    c_dropWaferAirlock:         RobotID;
+
+proc
+    InputStack(id: InputStackID, wafers: Int) =
+    % If stack is not empty, robot can pick up a wafer
+      (wafers > 0) -> r_pickUpWaferInputStack(matchInputStackRobot(id)) . InputStack(id, (wafers - 1))
+    % If stack is not empty, send not empty state
+    + (wafers > 0) -> s_sense_inputStack(id, NEMPTY) . InputStack()
+    % if stack is empty, robot cannot pick up a wafer, send empty state
+    + (wafers == 0) -> s_sense_inputStack(id, EMPTY) . InputStack()
+    % if stack is empty, a user can fill it
+    + (wafers == 0) -> user_fillStack(id) . InputStack(id, 4);
+
+    OutputStack(id: OutputStackID, wafers: Int) =
+    % If stack is not full, robot can drop up a wafer
+      (wafers < 4) -> r_dropWaferOutputStack(matchOutputStackRobot(id)) . OutputStack(id, (wafers + 1))
+    % If stack is not full, send not full state
+    + (wafers < 4) -> s_sense_outputStack(id, NFULL) . OutputStack()
+    % if stack is full, robot cannot pick drop a wafer, send full state
+    + (wafers == 4) -> s_sense_outputStack(id, FULL) . OutputStack()
+    % if stack is full, a user can empty it
+    + (wafers == 4) -> user_emptyStack(id) . OutputStack(id, 0);
+
+    Robot(id: RobotID, hasWafer: Bool, loc: Location) =
+    % If robot has no wafer, location is corresponding input stack, then check stack, pick up wafer and move to airlock
+      ((hasWafer == false) && ((loc == LI1) || (loc == LI2)) && (matchRobotInputStack(id) == matchLocInputStack(loc)))
+    -> r_sense_inputStack(matchRobotInputStack(id), NEMPTY) . s_pickUpWaferInputStack(id) . Robot(id, true, matchAirlockLoc(id))
+    % if robot has wafer, location is corresponding airlock, then check the airlock, drop wafer and stay in position
+    + ((hasWafer == true) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocAirlock(loc)))
+    -> r_sense_airlock(matchRobotAirlock(id), NWAFER) . s_dropWaferAirlock(id) . Robot(id, false, matchAirlockLoc(id))
+    % if robot has no wafer, location is corresponding airlock, then check airlock, pick up wafer and move to output stack
+    + ((hasWafer == false) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocAirlock(loc)))
+    -> r_sense_airlock(matchRobotAirlock(id), WAFER) . s_pickUpWaferAirlock(id). Robot(id, true, matchOutputStackLoc(id))
+    % if robot has wafer, location is corresponding output stack, then check stack, drop wafer and move to input stack
+    + ((hasWafer == true) && ((loc == LO1) || (loc == LO2)) && (matchRobotOutputStack(id) == matchLocOutputStack(loc)))
+    -> r_sense_outputStack(matchRobotOutputStack(id), NFULL) . s_dropWaferOutputStack(id) . Robot(id, false, matchInputStackLoc(id))
+    % if robot has no wafer, location is corresponding input stack, stack is empty, then keep checking stack
+    + ((hasWafer == false) && ((loc == LI1) || (loc == LI2)) && (matchRobotInputStack(id) == matchLocInputStack(loc)))
+    -> r_sense_inputStack(matchRobotInputStack(id), EMPTY) . Robot()
+    % if robot has wafer, location is corresponding airlock, airlock is full, then keep checking airlock
+    + ((hasWafer == true) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocAirlock(loc)))
+    -> r_sense_airlock(matchRobotAirlock(id), WAFER) . Robot()
+    % if robot has no wafer, location is corresponding airlock, airlock is empty, then keep checking the airlock
+    + ((hasWafer == false) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocAirlock(loc)))
+    -> r_sense_airlock(matchRobotAirlock(id), NWAFER) . Robot()
+    % if robot has wafer, location is corresponding output stack, stack is full, then keep checking stack
+    + ((hasWafer == true) && ((loc == LO1) || (loc == LO2)) && (matchRobotOutputStack(id) == matchLocOutputStack(loc)))
+    -> r_sense_outputStack(matchRobotOutputStack(id), FULL) . Robot();
+
+init
+%        InputStack(I1, 4) || InputStack(I2, 4) || OutputStack(O1, 0) || OutputStack(O2, 0) || Robot(R1, false, LI1) || Robot(R2, false, LI2);
+        InputStack(I1, 2) || OutputStack(O1, 0) || Robot(R1, false, LI1);
+%         Robot(R1, false, LI1);
+

@@ -1,0 +1,52 @@
+
+This chapter presents the interactions that take place between the components we have described in chapter~\ref{chap:reqs}.
+
+\section{User Inputs}
+
+The following actions can be performed by a user upon the components of the system. We describe this type of interactions as a function which takes a parameter "a" that represents the target of the user interaction, where I1, I2 are input stacks, O1, O2 are output stacks and DO1, DO2, DI1, DI2 are airlock doors.
+
+\begin{tabular}{ l l l }
+  user_fillStack(a): & (a: I1, I2) & Fill the corresponding stack with wafers. \\
+  user_emptyStack(a): & (a: O1, O2) & Empty the corresponding stack. \\
+  user_repairDoor(a): & (a: DO1, DO2, DI1, DI2) & Repair the corresponding door. \\
+\end{tabular}
+
+\section{Actuators}
+
+The actuators can be instructed by the following commands which can be sent by the controller. The first parameter represents the target of the command, while the second one represents the corresponding action to be taken. An exception is made in the case of the lamp, as there is only one component of this type in the whole system, therefore the first parameter will be omitted. DI1, DI2 are airlock input doors; DO1, DO2 are airlock output doors.
+The doors can be instructed to open or close, while the lamp can be instructed to turn on or off, therefore the values of parameter "p".
+
+\begin{tabular}{ l l l }
+  a_setDoor(a, p): & (a: DI1, DI2, DO1, DO2 --  & Sets the doors to open or close. \\
+  &  p: OPEN, CLOSED) & \\
+  a_setLamp(p): & (p: ON, OFF) & Turns the lamp on or off. \\
+\end{tabular}
+
+\section{Robots}
+
+Robots can be ordered to move to a position, pick up a wafer or drop a
+wafer. In the following definitions, the parameter "r" represents the robot in question (i.e. R1, R2, or R3). Parameter "l" shows the location to which the robot is instructed to move, where I1, I2 are input stacks, O1, O2 are output stacks, A1, A2 are airlocks, L is the lamp.
+
+\begin{tabular}{ l l l }
+  robot_moveToLocation(r, l): & (r: R1 .. R3 -- & Instructs a robot to move \\
+  &  l: I1, I2, O1, O2, A1, A2, L) & to the specified location. \\
+  robot_pickUpWafer(r): & (r: R1 .. R3) & Instructs a robot to pick up \\
+  & & a wafer from its current location. \\
+  robot_dropWafer(r): & (r: R1 .. R3) & Instructs a robot to drop \\
+  & & a wafer at its current location. \\
+\end{tabular}
+
+\section{Sensors}
+
+The following commands can be used by the safety controller to read out the current data from the sensors. The parameter ”a” is the target of the command, with functions having specific targets. If a command has no target, there is only one sensor of that type and will be used automatically. Parameter "r" represents the possible values that the sensors can return.
+
+\begin{tabular}{ l l l }
+  sense_inputStack(r): & (a: I1, I2 -- r : Empty, Not-Empty) & Checks whether \\
+  & & the Input stack is empty or not. \\
+  sense_outputStack(r): & (a: O1, O2 —r: Full, Not_Full) & Checks whether \\
+  & & the Output stack is full or not. \\
+  sense_airlock(r): & (a: A1, A2 — r : Wafer, No_wafer) & Checks whether \\
+  & & the Airlock contains a wafer or not. \\
+  sense_lamp(r): & (r: Wafer, No_wafer ) & Checks whether the Lamp contains \\
+  & & a wafer or not. \\
+\end{tabular}

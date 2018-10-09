@@ -1,0 +1,108 @@
+\documentclass[a4paper,11pt]{report}
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage[english]{babel}
+\usepackage{underscore}   % underscores need not be escaped
+%\usepackage{subfigure}
+\usepackage{verbatim}
+\usepackage{float}
+\usepackage{booktabs}     % professional tables
+\usepackage[table]{xcolor}
+\usepackage{parskip}
+\usepackage[section]{placeins} %place float stuff inside sections
+\usepackage{todonotes}
+\usepackage{listings}
+\usepackage{soul} %also for strikethrough
+\usepackage[top=3.5cm, bottom=3.5cm, left=3.5cm, right=3cm]{geometry}
+\setlength{\headheight}{1.20cm}
+\setlength{\headsep}{0.50cm}
+
+% Support for including graphics
+\usepackage{graphicx}
+\usepackage{subcaption}
+\DeclareGraphicsExtensions{.pdf,.png,.jpg}
+
+\title{System Validation Project}
+\author{Ana Aldescu}
+
+\usepackage{listings}
+
+\lstset{
+	numbers=left, numberstyle=\footnotesize,
+	frame=lines, captionpos=b,
+	breaklines=true,
+	basicstyle=\ttfamily
+}  
+
+\usepackage{hyperref}
+\hypersetup{%
+    colorlinks=true,
+    linkcolor=blue,
+    anchorcolor=black,
+    citecolor=black,
+    filecolor=blue,
+    menucolor=black,
+    urlcolor=blue,
+    bookmarks=true,
+    bookmarksnumbered=true
+}
+\urlstyle{sf}
+
+\begin{document}
+
+	\newenvironment{frontmatter}{\pagenumbering{roman}}{\newpage \pagenumbering{arabic}}
+	\begin{frontmatter}
+		\input{src/titlepage}
+		\newpage
+		
+		\tableofcontents
+	\end{frontmatter}
+	
+	\chapter{Introduction}
+	\label{chap:intro}
+	\input{src/introduction}
+	\newpage
+	
+	\chapter{Requirements}
+	\label{chap:reqs}
+	\input{src/reqs}
+	\newpage
+	
+	\chapter{Interactions}
+	\label{chap:interact}
+	\input{src/interact}
+	\newpage
+		 
+	\chapter{Architecture}
+	\label{chap:arch}
+	\input{src/arch}		 
+	\newpage
+	
+%	\addtocontents{toc}{\protect\newpage}
+	
+	\chapter{Translated Requirements}
+	\label{chap:transReq}
+	\input{src/transReq}
+	\newpage
+	   	
+	\chapter{Modeling the system}
+	\label{chap:model}
+	\input{src/model}
+	\newpage
+	
+	\chapter{Verification}
+	\label{chap:verif}
+	\input{src/verif}
+	\newpage
+	
+	\chapter{Conclusions}
+	\label{chap:concl}
+	\input{src/concl}
+	\newpage
+	
+%	%\chapter*{Bibliography}
+
+%\bibliographystyle{ieeetr}
+%\bibliography{thesis}
+
+\end{document}
