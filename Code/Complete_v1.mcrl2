@@ -1,0 +1,316 @@
+
+% First version of wafer projection system
+% This file models the system's components:
+% S Stacks, R Robots, D Doors, A Airlocks
+% L Lamp - maybe; it's only one so I think it's implicit
+
+sort
+	% Multi-Objects
+	InputStackID  = struct I1 | I2;
+	OutputStackID = struct O1 | O2;
+	RobotID		  = struct R1 | R2 | R3;
+	DoorID		  = struct DI1 | DI2 | DO1 | DO2;
+	AirlockID 	  = struct A1 | A2 | ANY;
+     Location        = struct LI1 | LI2 | LO1 | LO2 | LA1 | LA2 | LAMP;
+
+	% States
+	waferState		= struct PROJECTED | UNPROJECTED;
+	doorState 			= struct OPENED | CLOSED | BROKEN;
+	sensorState 		= struct DETECTED | UNDETECTED;	% Maybe use this for airlocks
+	lampState			= struct ON | OFF;
+	inputStackState	= struct EMPTY | NEMPTY;
+	outputStackState	= struct FULL | NFULL;
+	robotState			= struct DROP | PICK_UP;
+
+map
+	%Airlock -> Door
+	matchAirlockInputDoor:		AirlockID -> DoorID;
+	matchAirlockOutputDoor:	AirlockID -> DoorID;
+
+	%Airlock -> Robot
+	matchAirlockRobot:	AirlockID -> RobotID;
+
+	%Robot ->  Airlock
+	matchRobotAirlock:	RobotID -> AirlockID;
+
+	%Airlock -> Location
+	matchAirlockLocation:	AirlockID -> Location;
+
+	%Location -> Airlock
+	matchLocationAirlock: Location -> AirlockID;
+
+	%InputStack -> Robot
+	matchInputStackRobot:	InputStackID -> RobotID;
+
+	%InputStack -> Location
+	matchInputStackLocation:	InputStackID -> Location;
+
+	%OutputStack -> Robot
+	matchOutputStackRobot:		OutputStackID -> RobotID;
+
+	%Robot -> OutputStack
+	matchRobotOutputStack:		RobotID -> OutputStackID;
+
+	%OutputStack -> Location
+	matchOutputStackLocation:	OutputStackID -> Location;
+
+	%Location -> OutputStack
+	matchLocationOutputStack:		Location -> OutputStackID;
+
+	%Robot -> InputStack
+	matchRobotInputStack:	RobotID -> InputStackID;
+
+	%Location -> InputStack
+	matchLocationInputStack:	Location -> InputStackID;
+
+	%Robot -> Door
+	matchRobotDoor: RobotID -> DoorID;
+
+eqn
+	%Airlock -> Door
+	matchAirlockInputDoor(A1) = DI1;
+	matchAirlockInputDoor(A2) = DI2;
+
+	matchAirlockOutputDoor(A1) = DO1;
+	matchAirlockOutputDoor(A2) = DO2;
+
+	%Airlock -> Robot
+	matchAirlockRobot(A1) = R1;
+	matchAirlockRobot(A2) = R2;
+
+	%Robot ->  Airlock
+	matchRobotAirlock(R1) = A1;
+	matchRobotAirlock(R2) = A2;
+
+	%Airlock -> Location
+	matchAirlockLocation(A1) = LA1;
+	matchAirlockLocation(A2) = LA2;
+
+	%Location -> Airlock
+	matchLocationAirlock(LA1) = A1;
+	matchLocationAirlock(LA2) = A2;
+
+	%InputStack -> Robot
+	matchInputStackRobot(I1) = R1;
+	matchInputStackRobot(I2) = R2;
+
+	%InputStack -> Location
+	matchInputStackLocation(I1) = LI1;
+	matchInputStackLocation(I2) = LI2;
+
+	%Location -> InputStack
+	matchLocationInputStack(LI1) = I1;
+	matchLocationInputStack(LI2) = I2;
+
+	%OutputStack -> Robot
+	matchOutputStackRobot(O1) = R1;
+	matchOutputStackRobot(O2) = R2;
+
+	%Robot -> OutputStack
+	matchRobotOutputStack(R1) = O1;
+	matchRobotOutputStack(R2) = O2;
+
+	%OutputStack -> Location
+	matchOutputStackLocation(O1) = LO1;
+	matchOutputStackLocation(O2) = LO2;
+
+	%Location -> OutputStack
+	matchLocationOutputStack(LO1) = O1;
+	matchLocationOutputStack(LO2) = O2;
+
+	%Robot -> InputStack
+	matchRobotInputStack(R1) = I1;
+	matchRobotInputStack(R2) = I2;
+
+	%Robot -> Door
+	matchRobotDoor(R1) = DO1;
+	matchRobotDoor(R2) = DO2;
+
+act	
+	% External commands
+	user_fillStack		: InputStackID;
+	user_emptyStack	: OutputStackID;
+	user_repairDoor	: DoorID;
+
+	% Actions
+	a_closeDoor 				: DoorID;
+	a_openDoor 				: DoorID;
+	a_project;
+	a_pickUpWafer	: RobotID		#	 Location;
+	a_dropWafer		: RobotID		#		Location;
+
+	% Communication
+	s_inputStackState,
+	r_inputStackState,
+	inputStackState:	InputStackID	#	inputStackState;
+
+	s_outputStackState,
+	r_outputStackState,
+	outputStackState:	OutputStackID	#	outputStackState;
+
+	s_airlockState,
+	r_airlockState,
+	airlockState:		AirlockID		#	Bool	 #	doorState	#	doorState;
+
+	s_waferState,
+	r_waferState,
+	waferState:	AirlockID	# waferState;
+
+	s_lampState,
+	r_lampState,
+	lampState:			lampState	#	Bool	#	waferState;
+
+	s_robotState,
+	r_robotState,
+	robotState:			RobotID # Bool # Location;
+
+	% Sensors
+	sense_inputStack:		InputStackID	#	inputStackState;
+	sense_outputStack:	OutputStackID	#	outputStackState;
+	sense_airlock:			AirlockID		#	Bool;
+	sense_lamp:			lampState	#	Bool	#	waferState;
+	sense_doorOpen:		DoorID	#	sensorState;
+	sense_doorClose:	DoorID	#	sensorState;
+
+proc
+	AirlockController (i: AirlockID, hasWafer: Bool, w: waferState, inputDoorState: doorState, outputDoorState: doorState) =
+	%Robot drops wafer
+	((hasWafer == false) && (inputDoorState == CLOSED) && (outputDoorState == OPENED)) -> r_robotState(matchAirlockRobot(i), true, matchAirlockLocation(i)).AirlockController(hasWafer = true)
+	%Output Door works
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == OPENED) && (w == UNPROJECTED)) -> a_closeDoor(matchAirlockOutputDoor(i)).sense_doorClose(matchAirlockOutputDoor(i), DETECTED).AirlockController(outputDoorState = CLOSED)
+	%Output Door doesn't work
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == OPENED) && (w == UNPROJECTED)) -> a_closeDoor(matchAirlockOutputDoor(i)).sense_doorClose(matchAirlockOutputDoor(i), UNDETECTED).AirlockController(outputDoorState = BROKEN)
+	%Input Door works
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == CLOSED) && (w == UNPROJECTED)) -> a_openDoor(matchAirlockInputDoor(i)).sense_doorOpen(matchAirlockInputDoor(i), DETECTED).AirlockController(inputDoorState = OPENED)
+	%Input Door doesn't work
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == CLOSED) && (w == UNPROJECTED)) -> a_openDoor(matchAirlockInputDoor(i)).sense_doorOpen(matchAirlockInputDoor(i), UNDETECTED).AirlockController(inputDoorState = BROKEN)
+	%Robot 3 picks-up wafer
+	+((hasWafer == true) && (inputDoorState == OPENED) && (outputDoorState == CLOSED) && (w == UNPROJECTED)) -> r_robotState(R3, false, matchAirlockLocation(i)).AirlockController(hasWafer = false)
+	%?Robot 3 drops wafer
+	+((hasWafer == false) && (inputDoorState == OPENED) && (outputDoorState == CLOSED))-> r_robotState(R3, true, matchAirlockLocation(i)).AirlockController(hasWafer = true, w = PROJECTED)
+	%Input Door works
+	+((hasWafer == true) && (inputDoorState == OPENED) && (outputDoorState == CLOSED) && (w == PROJECTED)) -> a_closeDoor(matchAirlockInputDoor(i)).sense_doorClose(matchAirlockInputDoor(i), DETECTED).AirlockController(inputDoorState = CLOSED)
+	%Input Door doesn't work
+	+((hasWafer == true) && (inputDoorState == OPENED) && (outputDoorState == CLOSED) && (w == PROJECTED)) -> a_closeDoor(matchAirlockInputDoor(i)).sense_doorOpen(matchAirlockInputDoor(i), UNDETECTED).AirlockController(inputDoorState = BROKEN)
+	%Output Door works
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == CLOSED) && (w == PROJECTED)) -> a_openDoor(matchAirlockOutputDoor(i)).sense_doorClose(matchAirlockOutputDoor(i), DETECTED).AirlockController(outputDoorState = OPENED)
+	%Output Door doesn't work
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == CLOSED) && (w == PROJECTED)) -> a_openDoor(matchAirlockOutputDoor(i)).sense_doorClose(matchAirlockOutputDoor(i), UNDETECTED).AirlockController(outputDoorState = BROKEN)
+	%Robot picks-up wafer
+	+((hasWafer == true) && (inputDoorState == CLOSED) && (outputDoorState == OPENED) && (w == PROJECTED)) -> r_robotState(matchAirlockRobot(i), false, matchAirlockLocation(i)).AirlockController(hasWafer = false, w = UNPROJECTED)
+	%Send airlock state
+	+s_airlockState(i, hasWafer, inputDoorState, outputDoorState).AirlockController()
+	%If a door breaks it can only be repaired to CLOSED state
+	+(inputDoorState == BROKEN) -> user_repairDoor(matchAirlockInputDoor(i)).AirlockController(inputDoorState = CLOSED)
+	+(outputDoorState == BROKEN) -> user_repairDoor(matchAirlockOutputDoor(i)).AirlockController(outputDoorState = CLOSED);
+
+	InputStack(id: InputStackID, wafers: Int) =
+    % A wafer can only be picked up from the input stack if the input stack is not empty
+      (wafers > 0) -> r_robotState(matchInputStackRobot(id), false, matchInputStackLocation(id)) . InputStack(id, (wafers - 1))
+    % if stack is not empty, send not empty state
+    + (wafers > 0) -> s_inputStackState(id, NEMPTY) . InputStack()
+    % if stack is empty, send empty state
+    + (wafers == 0) -> s_inputStackState(id, EMPTY) . InputStack()
+    % if stack is empty, a user can fill it
+    + (wafers == 0) -> user_fillStack(id) . InputStack(id, 4);
+
+    OutputStack(id: OutputStackID, wafers: Int) =
+    % A wafer can only be placed into the output stack if the output stack is not full
+      (wafers < 4) -> r_robotState(matchOutputStackRobot(id), true, matchOutputStackLocation(id)) . OutputStack(id, (wafers + 1))
+    % if stack is not full, send not full state
+    + (wafers < 4) -> s_outputStackState(id, NFULL) . OutputStack()
+    % if stack is full, send full state
+    + (wafers == 4) -> s_outputStackState(id, FULL) . OutputStack()
+    % if stack is full, a user can empty it
+    + (wafers == 4) -> user_emptyStack(id) . OutputStack(id, 0);
+
+    Robot(id: RobotID, hasWafer: Bool, loc: Location) =
+    % If robot has no wafer, location is corresponding input stack, then check stack, pick up wafer and move to airlock
+      ((hasWafer == false) && ((loc == LI1) || (loc == LI2)) && (matchRobotInputStack(id) == matchLocationInputStack(loc)))
+    -> r_inputStackState(matchRobotInputStack(id), NEMPTY) . sense_inputStack(matchRobotInputStack(id), NEMPTY) . a_pickUpWafer(id, loc) . Robot(hasWafer = true, loc = matchAirlockLocation(matchRobotAirlock(id)))
+%    % if robot has wafer, location is corresponding airlock, then check the airlock, drop wafer and stay in position
+    + ((hasWafer == true) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocationAirlock(loc))) -> r_airlockState(matchRobotAirlock(id), false, CLOSED, OPENED) . sense_doorOpen(matchRobotDoor(id), DETECTED) . a_dropWafer(id, loc) . Robot(hasWafer = false)
+%    % if robot has no wafer, location is corresponding airlock, then check airlock, pick up wafer and move to output stack
+    + ((hasWafer == false) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocationAirlock(loc))) -> r_airlockState(matchRobotAirlock(id), true, CLOSED, OPENED) . sense_doorOpen(matchRobotDoor(id), DETECTED) . a_pickUpWafer(id, loc) . Robot(hasWafer = true, loc = matchOutputStackLocation(matchRobotOutputStack(id)))
+    % if robot has wafer, location is corresponding output stack, then check stack, drop wafer and move to input stack
+    + ((hasWafer == true) && ((loc == LO1) || (loc == LO2)) && (matchRobotOutputStack(id) == matchLocationOutputStack(loc)))
+    -> r_outputStackState(matchRobotOutputStack(id), NFULL) . sense_outputStack(matchRobotOutputStack(id), NFULL) . a_dropWafer(id, loc) . Robot(id, false, matchInputStackLocation(matchRobotInputStack(id)))
+    % if robot has no wafer, location is corresponding input stack, stack is empty, then keep checking stack
+    + ((hasWafer == false) && ((loc == LI1) || (loc == LI2)) && (matchRobotInputStack(id) == matchLocationInputStack(loc)))
+    -> r_inputStackState(matchRobotInputStack(id), EMPTY) . sense_inputStack(matchRobotInputStack(id), EMPTY) . Robot()
+%    % if robot has wafer, location is corresponding airlock, door is closed, then keep checking airlock
+    + ((hasWafer == true) && ((loc == LA1) || (loc == LA2)) && (matchRobotAirlock(id) == matchLocationAirlock(loc))) -> sense_doorOpen(matchRobotDoor(id), UNDETECTED) . Robot()
+    % if robot has wafer, location is corresponding output stack, stack is full, then keep checking stack
+    + ((hasWafer == true) && ((loc == LO1) || (loc == LO2)) && (matchRobotOutputStack(id) == matchLocationOutputStack(loc)))
+    -> r_outputStackState(matchRobotOutputStack(id), FULL) . sense_outputStack(matchRobotOutputStack(id), FULL) . Robot()
+    % send robot state
+    + s_robotState(id, hasWafer, loc).Robot();
+ 
+	R3 (i: AirlockID, loc: Location, hasWafer: Bool, r: waferState) =
+	%NON - Deterministic
+	%to pick wafer for processing it should be not processed before
+	%((i==DONTCARE && l==DI1 && w == NOWAFER && r == NOTREADY))-> r_comm_status_A1(WAFER).r_comm_waferstatus_A1(NOTREADY).r_comm_door_DI1(OPEN).Pick_wafer_in(A1).R3(A1,DI1,WAFER,NOTREADY) +
+	% If no wafer in Lamp , put wafer there !
+	% i tells where was the wafer taken from
+
+	%If there is a wafer in A1
+	((i == ANY && (loc == LA1 || loc == LA2) && hasWafer == false && r == UNPROJECTED)) -> r_airlockState(A1, true, OPENED, CLOSED).r_airlockState(A2, false, OPENED, CLOSED).sense_doorOpen(DI1 ,DETECTED).R3(i = A1, loc = LAMP, hasWafer = true) +
+	%If there is a wafer in A2
+	((i == ANY && (loc == LA1 || loc == LA2) && hasWafer == false && r == UNPROJECTED)) -> r_airlockState(A1, false, OPENED, CLOSED).r_airlockState(A2, true, OPENED, CLOSED).sense_doorOpen(DI2, DETECTED).R3(i = A2, loc = LAMP, hasWafer = true) +
+	%If there is no wafer in neither airlocks
+	((i == ANY && (loc == LA1 || loc == LA2) && hasWafer == false && r == UNPROJECTED)) -> r_airlockState(A1, false, OPENED, CLOSED).r_airlockState(A2, false, OPENED, CLOSED).R3() +
+	%If there are wafers in both airlocks
+	((i == ANY && (loc == LA1 || loc == LA2) && hasWafer == false && r == UNPROJECTED)) -> r_airlockState(A1, true, OPENED, CLOSED).r_airlockState(A2, true, OPENED, CLOSED).sense_doorOpen(DI1, DETECTED).R3(i = A1, loc = LAMP, hasWafer = true) +
+	%If R3 senses both airlocks being closed it just waits
+	((i == ANY && (loc == LA1 || loc == LA2) && hasWafer == false && r == UNPROJECTED)) -> sense_doorClose(DI1, DETECTED).sense_doorClose(DI2, DETECTED).R3() +
+	
+	%Drop uprojected wafer to lamp
+	((i == A1 && loc == LAMP && hasWafer == true && r == UNPROJECTED)) -> r_lampState(OFF, false, UNPROJECTED).sense_lamp(OFF, false, UNPROJECTED).a_dropWafer(R3, LAMP).R3(hasWafer = false) +
+	%Pick-up projected wafer from lamp
+	((i == A1 && loc == LAMP && hasWafer == false && r == UNPROJECTED)) -> r_lampState(OFF, true, PROJECTED).sense_lamp(OFF, true, PROJECTED).a_pickUpWafer(R3, LAMP).R3(loc = LA1, hasWafer = true, r = PROJECTED) +
+ 	% If you are lamp, door open, A1 has no wafer so pich up wafer from lamp
+	((i == A1 && loc == LA1 && hasWafer == true && r == PROJECTED))-> r_airlockState(A1, false, OPENED, CLOSED).a_dropWafer(R3, LA1).R3(i = ANY, hasWafer = false, r = UNPROJECTED) +
+
+	
+	%Drop uprojected wafer to lamp
+	((i == A2 && loc == LAMP && hasWafer == true && r == UNPROJECTED)) -> r_lampState(OFF, false, UNPROJECTED).a_dropWafer(R3, LAMP).R3(hasWafer = false) +
+	%Pick-up projected wafer from lamp
+	((i == A2 && loc == LAMP && hasWafer == false && r == UNPROJECTED)) -> r_lampState(OFF, true, PROJECTED).a_pickUpWafer(R3, LAMP).R3(loc = LA2, hasWafer = true, r = PROJECTED) +
+ 	% If you are lamp, door open, A1 has no wafer so pich up wafer from lamp
+	((i == A2 && loc == LA2 && hasWafer == true && r == PROJECTED))-> r_airlockState(A2, false, OPENED, CLOSED).a_dropWafer(R3, LA2).R3(i = ANY, hasWafer = false, r = UNPROJECTED) +
+
+	%Send the state
+	s_robotState(R3, hasWafer, loc).R3();
+
+	Lamp(s: lampState, hasWafer: Bool, r: waferState) = 
+	% has no wafer, signal robot to drop wafer
+	(s == OFF && hasWafer == false) -> r_robotState(R3, true, LAMP).Lamp(hasWafer = true) +
+	%Wait until R3 drops wafer	
+	%(s == OFF && hasWafer == false) ->Lamp() +
+	%Project the wafer
+	(s == OFF && hasWafer == true && r == UNPROJECTED) -> a_project.Lamp(s = ON, r = PROJECTED) +
+	%(s == ON && hasWafer == true && r == PROJECTED) -> Lamp(s = OFF) +
+	%R3 picks the projected wafer
+	(s == OFF && hasWafer == true && r == PROJECTED) -> r_robotState(R3, false, LAMP).Lamp(hasWafer = false, r = UNPROJECTED) +
+	%Wait until R3 picks the wafer
+	%((s == OFF && hasWafer == true && r == PROJECTED)) -> Lamp() +
+	
+	%Send the state	
+	s_lampState(s, hasWafer, r).Lamp();
+		
+	init
+		hide({inputStackState, outputStackState, airlockState, waferState, lampState, robotState},
+
+			allow({ user_fillStack , user_emptyStack , user_repairDoor ,
+        			a_closeDoor , a_openDoor , a_project , a_pickUpWafer , a_dropWafer ,
+        			inputStackState , outputStackState , airlockState , waferState ,
+            		lampState , robotState ,
+        			sense_inputStack , sense_outputStack , sense_airlock ,
+            		sense_lamp , sense_doorOpen , sense_doorClose },	
+			comm({ r_inputStackState|s_inputStackState -> inputStackState, r_outputStackState |s_outputStackState  -> outputStackState , r_airlockState |s_airlockState  -> airlockState , r_waferState |s_waferState  -> waferState , r_lampState |s_lampState  -> lampState , r_robotState |s_robotState  -> robotState },
+				InputStack(I1, 2) || OutputStack(O1, 0) || Robot(R1, false, LI1) || Robot(R2, false, LI2) || AirlockController(A1, false, UNPROJECTED, CLOSED, OPENED) || AirlockController(A2, false, UNPROJECTED, CLOSED, OPENED) || R3(ANY, LA1, false, UNPROJECTED) || Lamp(OFF, false, UNPROJECTED)
+			)
+		)
+	);
+	
+		

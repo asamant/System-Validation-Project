@@ -1,52 +1,66 @@
 
-This chapter presents the interactions that take place between the components we have described in chapter~\ref{chap:reqs}.
+This chapter presents the interactions that take place between the components we have described previously.
 
-\section{User Inputs}
+\section{Outer Robot Controllers}
 
-The following actions can be performed by a user upon the components of the system. We describe this type of interactions as a function which takes a parameter "a" that represents the target of the user interaction, where I1, I2 are input stacks, O1, O2 are output stacks and DO1, DO2, DI1, DI2 are airlock doors.
-
-\begin{tabular}{ l l l }
-  user_fillStack(a): & (a: I1, I2) & Fill the corresponding stack with wafers. \\
-  user_emptyStack(a): & (a: O1, O2) & Empty the corresponding stack. \\
-  user_repairDoor(a): & (a: DO1, DO2, DI1, DI2) & Repair the corresponding door. \\
-\end{tabular}
-
-\section{Actuators}
-
-The actuators can be instructed by the following commands which can be sent by the controller. The first parameter represents the target of the command, while the second one represents the corresponding action to be taken. An exception is made in the case of the lamp, as there is only one component of this type in the whole system, therefore the first parameter will be omitted. DI1, DI2 are airlock input doors; DO1, DO2 are airlock output doors.
-The doors can be instructed to open or close, while the lamp can be instructed to turn on or off, therefore the values of parameter "p".
+The outer robot controllers interact with the input stack controllers, the output stack controllers, and the airlock controllers (each outer robot controller interacts \textit{only} with its corresponding controller).
 
 \begin{tabular}{ l l l }
-  a_setDoor(a, p): & (a: DI1, DI2, DO1, DO2 --  & Sets the doors to open or close. \\
+  s_robotState(rID, ): & (rID: R1, R2 --  & Sends the state of the robot to other controllers \\
   &  p: OPEN, CLOSED) & \\
-  a_setLamp(p): & (p: ON, OFF) & Turns the lamp on or off. \\
 \end{tabular}
 
-\section{Robots}
+\section{Input Stack Controllers}
 
-Robots can be ordered to move to a position, pick up a wafer or drop a
-wafer. In the following definitions, the parameter "r" represents the robot in question (i.e. R1, R2, or R3). Parameter "l" shows the location to which the robot is instructed to move, where I1, I2 are input stacks, O1, O2 are output stacks, A1, A2 are airlocks, L is the lamp.
+The input stack controllers determine whether the input stacks are empty or not, and interact with the robot controllers to indicate whether wafers can be picked up by the robots (if the stacks aren't empty) or not. If not, an external interaction is needed to symbolize that the stacks are refilled. 
 
 \begin{tabular}{ l l l }
-  robot_moveToLocation(r, l): & (r: R1 .. R3 -- & Instructs a robot to move \\
-  &  l: I1, I2, O1, O2, A1, A2, L) & to the specified location. \\
-  robot_pickUpWafer(r): & (r: R1 .. R3) & Instructs a robot to pick up \\
-  & & a wafer from its current location. \\
-  robot_dropWafer(r): & (r: R1 .. R3) & Instructs a robot to drop \\
-  & & a wafer at its current location. \\
+  s_inputStack(id): & (id: I1 .. I2) -- & Provides the state \\
+  &  & of the input stack as empty/not. \\
 \end{tabular}
 
-\section{Sensors}
+\section{Output Stack Controllers}
 
-The following commands can be used by the safety controller to read out the current data from the sensors. The parameter ”a” is the target of the command, with functions having specific targets. If a command has no target, there is only one sensor of that type and will be used automatically. Parameter "r" represents the possible values that the sensors can return.
+The output stack controllers determine whether the output stacks are full or not, and interact with the robot controllers to indicate whether wafers can be dropped by the robots (if the stacks aren't full) or not. If not, an external interaction is needed to symbolize that the stacks are emptied to allow wafers to be dropped. 
 
 \begin{tabular}{ l l l }
-  sense_inputStack(r): & (a: I1, I2 -- r : Empty, Not-Empty) & Checks whether \\
-  & & the Input stack is empty or not. \\
-  sense_outputStack(r): & (a: O1, O2 —r: Full, Not_Full) & Checks whether \\
-  & & the Output stack is full or not. \\
-  sense_airlock(r): & (a: A1, A2 — r : Wafer, No_wafer) & Checks whether \\
-  & & the Airlock contains a wafer or not. \\
-  sense_lamp(r): & (r: Wafer, No_wafer ) & Checks whether the Lamp contains \\
-  & & a wafer or not. \\
+  s_outputStack(id): & (id: O1, O2) & Provides the state of  \\
+  & & the output stack as full/not. \\
+\end{tabular}
+
+\section{Airlock Controllers}
+
+The airlock controllers control the airlock doors and provide information based on the status of the wafer sensors. Each airlock controller interacts with the R3 controller, and the corresponding outer robot controller to transfer wafers into and out of the vacuum chamber. 
+
+\begin{tabular}{ l l l }
+	s_airlockState(id): & (id: A1, A2) & Send the state of the airlock \\
+	& & and its doors. \\
+\end{tabular}
+
+\section{Inner Robot Controller}
+
+The inner robot (R3) controller controls the movement of the robot to/from the airlocks from/to the lamp, and the picking up and dropping of wafers in the three locations. It interacts with the lamp controller and the airlock controllers to move wafers around and get them projected and transferred to the airlocks.
+
+\begin{tabular}{ l l l }
+	s_robotState(r): & (R3) & Sends the state of  \\
+	& & the inner robot. \\
+\end{tabular}
+
+\section{Lamp Controller}
+
+The lamp controller interacts with the R3 controller to receive one wafer at a time, and makes the lamp project the wafer before signalling to the R3 controller to take it out, and also the turning on and off of the lamp.
+
+\begin{tabular}{ l l l }
+	s_lampState(r): & (a: I1, I2 -- r : Empty, Not-Empty) & Sends the state of  \\
+	& & the lamp as on/off\\
+\end{tabular}
+
+\section{External Interactions}
+
+The following actions can be performed by a user upon the components of the system. The system is not expected to have any user input, but some external interactions are needed in case the airlock doors get stuck, an input stack becomes empty, or an output stack becomes full.
+
+\begin{tabular}{ l l l }
+	user_fillStack(a): & (a: I1, I2) & Fill the corresponding stack with wafers. \\
+	user_emptyStack(a): & (a: O1, O2) & Empty the corresponding stack. \\
+	user_repairDoor(a): & (a: DO1, DO2, DI1, DI2) & Repair the corresponding door. \\
 \end{tabular}

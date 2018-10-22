@@ -11,7 +11,8 @@ The main assumptions made here for simplicity are as follows. The robots perform
 
 The architecture of the system is represented graphically using the Figure~{\ref{fig:arch}}. It consists of several components working in parallel to meet the requirements stated in chapter~{\ref{chap:reqs}}.
 
-For the most part, the system is expected to function without the need for any user input, but certain cases have been identified in which user input is needed to meet the system’s liveness requirements. These are indicated by green arrows in the diagram, and the corresponding sensor action indicating the need for user input is shown using orange arrows.
+For the most part, the system is expected to function without the need for any user input, but certain cases have been identified in which "external interaction" is needed to meet the system’s liveness requirements. These are indicated by green arrows in the diagram. There are various controllers for the components, and communication between the controllers is represented using blue arrows. These interactions take place between the controllers continuously and ensure that the system runs automatically.
 
-The system never reaches a state of “completion” since it is expected to run continuously till one of the conditions requiring a user input is met (see chapter~{\ref{chap:reqs}}). Theoretically, if the user continually
-replenishes the input stack with new wafers and clears the output stack at the same rate, and if the airlock doors do not malfunction, the system can run for an indefinite period of time.
+The controllers send the state of their associated components and poll for the states of other components as required, and make state transitions by performing the appropriate actions. The state transitions should not end up causing a deadlock within the overall system, at any cost. 
+
+The system never reaches a state of “completion” since it is expected to run continuously till one of the conditions requiring an external interaction is met (see chapter~{\ref{chap:reqs}}). Theoretically, if the user continually replenishes the input stack with new wafers and clears the output stack at the same rate, and if the airlock doors do not malfunction, the system can run for an indefinite period of time.
