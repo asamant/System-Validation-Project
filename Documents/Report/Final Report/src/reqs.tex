@@ -1,0 +1,44 @@
+
+The first step of the design process is to identify the requirements for the wafer projecting system we are considering. The components described in the previous chapter will have to follow some defined set of behaviors so as to meet all the requirements of the system, as will be presented hence.\\
+The requirements are presented in the form of safety requirements and liveness requirements, and are verifiable using formal logic.
+
+\section{Safety Requirements}
+
+These requirements ensure that the system is always in a stable state, that is, each one of them needs to be satisfied by the components for us to say that the system is behaving normally; the violation of even one of these requirements would mean that the system has malfunctioned.
+
+\begin{enumerate}
+\item Airlocks:
+    \begin{enumerate}
+    \item DI1/DI2 can only be opened if DO1/DO2 is closed.
+    \item DO1/DO2 can only be opened if DI1/DI2 is closed.
+    \end{enumerate}
+
+\item Lamp:
+    \begin{enumerate}
+    \item Each wafer dropped below the light can be projected only once before being picked up.
+    \end{enumerate}
+    
+\item Robots:
+    \begin{enumerate}
+    \item R1/R2 can only drop a wafer into O1/O2 if the stack is not full.
+    \item R1/R2 can only pick-up a wafer from I1/I2 if the stack is not empty.
+    \item R1/R2 can only pick-up a wafer from A1/A2 if DO1/DO2 is open.
+    \item R1/R2 can only drop a wafer in A1/A2 if DO1/DO2 is open.
+    \item R3 can only pick-up a wafer from A1/A2 if DI1/DI2 is open.
+    \item R3 can only drop a projected wafer in A1/A2 if DI1/DI2 is open.
+    \item After picking up a wafer from A1/A2, R3 can only drop it back to A1/A2 after the wafer was dropped to the lamp.
+    \item After picking up a wafer from its corresponding input stack, a robot can only drop it into its corresponding airlock.
+    \item After picking up a wafer from its corresponding airlock, a robot can only drop it into its corresponding output stack.
+    \item A wafer can only be placed into the output stack if it was projected by the lamp.
+    \end{enumerate}
+\end{enumerate}
+
+\section{Liveness Requirements}
+
+The following liveness requirements ensure the movement of the wafers throughout the system.
+
+\begin{enumerate}
+    \item From the input stack, a wafer should always be able to reach the lamp.
+    \item From the lamp, a wafer should always be able to reach the output stack.
+    \item The system must be deadlock-free.
+\end{enumerate}

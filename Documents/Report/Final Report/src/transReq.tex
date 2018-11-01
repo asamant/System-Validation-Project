@@ -1,0 +1,175 @@
+The requirements stated in chapter~\ref{chap:reqs} are translated to interactions between the controllers, and the resulting model is verified using $\mu$-calculus. This chapter lists the requirements translated into the corresponding $\mu$-calculus representation, taking one requirement at a time.
+
+\section{Translated safety requirements}  
+
+\begin{enumerate}
+\item Airlocks:
+    \begin{enumerate}
+    \item DI1/DI2 can only be opened if DO1/DO2 is closed.
+        \newline
+            $[true*] \forall {aID} : airlockID . [airlock\_setOuterDoorState(aID, OPEN)
+            \newline
+            . (!(airlock\_setOuterDoorState(aID, CLOSED)))*
+            \newline
+            . airlock\_setInnerDoorState(aID, OPEN)] false$
+    \item DO1/DO2 can only be opened if DI1/DI2 is closed.
+        \newline
+            $[true*] \forall {aID} : airlockID . [airlock\_setInnerDoorState(aID, OPEN)
+            \newline
+            . (!(airlock\_setInnerDoorState(aID, CLOSED)))*
+            \newline
+            . airlock\_setOuterDoorState(aID, OPEN)] false$
+    \end{enumerate}
+
+\item Lamp:
+    \begin{enumerate}
+    \item Each wafer dropped below the lamp can be projected only once before being picked up.
+        \newline
+        $[true*] [lamp\_projectWafer . (!robot\_pickUpWafer(R3, LAMP))*
+        \newline
+        . lamp\_projectWafer] false$
+    \end{enumerate}
+    
+\item Robots:
+    \begin{enumerate}
+        \item R1/R2 can only drop a wafer into O1/O2 if the stack is not full.
+            \begin{enumerate}
+            	\item $[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+            	\newline
+            	[outerRobot\_moveToLocation(rID, matchRobotOutputStack(rID))
+            	\newline
+            	. robot\_checkOutputStackState(matchRobotOutputStack(rID), FULL)
+            	\newline
+            	. robot\_dropWafer(rID, OUT\_STACK)] false$
+            	
+            	\item $[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+            	\newline
+            	[outerRobot\_moveToLocation(rID, matchRobotOutputStack(rID))
+            	\newline
+            	. (!robot\_checkOutputStackState(matchRobotOutputStack(rID), NFULL))*
+            	\newline
+            	. robot\_dropWafer(rID, OUT\_STACK)] false$
+            \end{enumerate}
+        
+        \item R1/R2 can only pick up a wafer from I1/I2 if the stack is not empty.
+            \begin{enumerate}
+            	\item $[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+            	\newline
+            	[outerRobot\_moveToLocation(rID, matchRobotInputStack(rID))
+            	\newline
+            	. robot\_checkInputStackState(matchRobotInputStack(rID), EMPTY)
+            	\newline
+            	. robot\_pickUpWafer(rID, INP\_STACK)] false$
+    			\item $[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[outerRobot\_moveToLocation(rID, matchRobotInputStack(rID))
+    			\newline
+    			. (!robot\_checkInputStackState(matchRobotInputStack(rID), NEMPTY))
+    			\newline
+    			. robot\_pickUpWafer(rID, INP\_STACK)] false$
+            \end{enumerate}
+        
+        \item R1/R2 can only pick up a wafer from A1/A2 if DO1/DO2 is open.
+    			\newline
+    			$[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[airlock\_setOuterDoorState(matchRobotAirlock(rID), CLOSED)
+    			\newline
+    			. (!airlock\_setOuterDoorState(matchRobotAirlock(rID), OPEN))*
+    			\newline
+    			. outerRobot\_moveToLocation(rID, matchRobotAirlock(rID))
+    			\newline
+    			. robot\_pickUpWafer(rID, O\_AIRLOCK)] false$
+        
+        \item R1/R2 can only drop a wafer in A1/A2 if DO1/DO2 is open.
+        		\newline
+    			$[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[airlock\_setOuterDoorState(matchRobotAirlock(rID), CLOSED)
+    			\newline
+    			. (!airlock\_setOuterDoorState(matchRobotAirlock(rID), OPEN))*
+    			\newline
+    			. outerRobot\_moveToLocation(rID, matchRobotAirlock(rID))
+    			\newline
+    			. robot\_dropWafer(rID, O\_AIRLOCK)] false$
+
+        \item R3 can only pick up a wafer from A1/A2 if DI1/DI2 is open.
+    		\newline
+    			$[true*] \forall {aID} : airlockID . val(aID == A1 || aID == A2) => 
+    			\newline
+    			[airlock\_setInnerDoorState(aID, CLOSED)
+    			\newline
+    			. (!airlock\_setInnerDoorState(aID, OPEN))*
+    			\newline
+    			. robot\_pickUpWafer(matchAirlockInnerRobotLocation(aID))] false$
+        
+        \item R3 can only drop a projected wafer in A1/A2 if DI1/DI2 is open.
+    		\newline
+    			$[true*] \forall {aID} : airlockID . val(aID == A1 || aID == A2) => 
+    			\newline
+    			[airlock\_setInnerDoorState(aID, CLOSED)
+    			\newline
+    			. (!airlock\_setInnerDoorState(aID, OPEN))*
+    			\newline
+    			. robot\_dropWafer(matchAirlockInnerRobotLocation(aID))] false$
+        
+        \item After picking up a wafer from A1/A2, R3 can only drop it back to A1/A2 after the wafer was dropped to the lamp.
+    		\newline
+    			$[true*] \forall {aID} : airlockID . val(aID == A1 || aID == A2) => 
+    			\newline
+    			. robot\_pickUpWafer(matchAirlockInnerRobotLocation(aID))
+    			\newline
+    			. (!robot\_dropWafer(LAMP))*
+    			\newline
+    			. robot\_dropWafer(matchAirlockInnerRobotLocation(aID))] false$
+        
+        \item After picking up a wafer from its corresponding input stack, a robot can only drop it into its corresponding airlock.
+        		\newline
+    			$[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[robot\_dropWafer(rID, OUT\_STACK)
+    			\newline
+    			. (!robot\_pickupWafer(rID, INP\_STACK))*
+    			\newline
+    			. outerRobot\_moveToLocation(rID, matchRobotAirlock(rID))
+    			\newline
+    			. robot\_dropWafer(rID, O\_AIRLOCK)] false$
+        
+        \item After picking up a wafer from its corresponding airlock, a robot can only drop it into its corresponding output stack.
+        		\newline
+    			$[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[robot\_dropWafer(rID, O\_AIRLOCK)
+    			\newline
+    			. (!robot\_pickupWafer(rID, O\_AIRLOCK))*
+    			\newline
+    			. outerRobot\_moveToLocation(rID, matchRobotOutputStack(rID))
+    			\newline
+    			. robot\_dropWafer(rID, OUT\_STACK)] false$
+        \item A wafer can only be placed into the output stack if it was projected by the lamp.
+        		\newline
+    			$[true*] \forall {rID}: robotID . val(rID == R1 || rID == R2) =>
+    			\newline
+    			[robot\_pickUpWafer(rID, INP\_STACK)
+    			\newline
+    			. (!lamp\_projectWafer)*
+    			\newline
+    			. robot\_dropWafer(rID, OUT\_STACK)] false$
+    
+    \end{enumerate}
+\end{enumerate}
+
+\section{Translated liveness requirements}
+
+\begin{enumerate}
+    \item From the input stack, a wafer should always be able to reach the lamp.
+        \newline
+	        $[true*] \forall{rID}: robotID . val(rID == R1 || rID == R2) => \newline
+        	[robot\_pickUpWafer(rID, INP\_STACK)]<true* . lamp\_projectWafer> true$
+    \item From the lamp, a wafer should always be able to reach the output stack.
+    \newline
+        	$[true*] \forall{rID}: robotID . val(rID == R1 || rID == R2) => \newline
+	        [lamp\_projectWafer]<true* . robot\_dropWafer(rID, OUT\_STACK)> true$
+    \item The system must be deadlock-free.
+	        \newline $[true*]<true>true$
+\end{enumerate}

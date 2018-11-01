@@ -1,0 +1,1 @@
+[true*] forall aID: airlockID . val(aID == A1 || aID == A2) => [airlock_setInnerDoorState(aID, CLOSED) . (!airlock_setInnerDoorState(aID, OPEN))* . robot_pickUpWafer(matchAirlockInnerRobotLocation(aID))] false

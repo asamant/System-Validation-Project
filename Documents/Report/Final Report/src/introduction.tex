@@ -1,0 +1,66 @@
+
+The System Validation course of TU Delft proposes a project assignment concerning the design of a controller for a small distributed embedded system.
+The goal of the assignment is to design, model, and verify a control system for a simplified machine that prepares wafers for the production of microchips.
+Following the different stages of this project, we should be able to properly formulate system requirements and represent the model using labeled transition systems.
+This document presents the constituent phases of the project. Chapter~\ref{chap:reqs} presents the requirements of the entire system that are formally verifiable. In chapter~\ref{chap:interact} we present the interactions taking place between the components defined in chapter~\ref{chap:reqs}. The architecture of the system is shown in chapter~\ref{chap:arch}. Chapter~\ref{chap:model} presents the modeled behaviour of all the controllers presented in the architecture. In chapter~\ref{chap:transReq} the model is verified with the translated requirements presented in chapter~\ref{chap:reqs}. Conclusions and other remarks are presented in chapter~\ref{chap:concl}.
+
+For a better understanding of the system's operation (in the semantic domain), this chapter also presents a list of physical components present in the system that work together to satisfy the requirements, which will be presented in the later chapters. Moreover, an informal description of the sequences of actions performed by the various components is also presented before proceeding towards the formal requirements, modelling, and verification.
+
+\section{System Components}
+
+\begin{itemize}
+	\item An UV lamp L - projects the wafer when placed underneath
+	\item A vacuum chamber
+	\item Two airlocks A1, A2
+	
+	\item Two sets of doors, one set per airlock
+	\begin{itemize}
+		\item Inner doors: DI1, DI2
+		\item Outer doors: DO1, DO2
+	\end{itemize}
+	
+	\item Three robots for moving wafers around
+	\begin{itemize}
+		\item Outside the vacuum chamber: R1, R2
+		\item Inside the vacuum chamber: R3
+	\end{itemize}
+	
+	\item Two sets of wafer stacks where wafers are loaded
+	\begin{itemize}
+		\item Input stacks: I1, I2
+		\item Output stacks: O1, O2
+	\end{itemize}
+	
+	\item One lamp sensor - Lamp has wafer/does not have a wafer underneath
+	\item Two airlock sensors - Corresponding airlock has/does not have a wafer
+	\item Two input stack sensors - Corresponding stack is empty/not empty
+	\item Two output stack sensors - Corresponding stack is full/not full
+	
+\end{itemize}
+
+\section{Sequences}
+
+We have identified two main sequences of the process. The first sequence describes the steps needed to move a blank wafer from the input stack(s) to the lamp, while the second sequence describes how a wafer reaches the output stack(s) after being projected by the lamp.
+
+\subsection{Wafer to lamp}
+\begin{enumerate}
+	\item Outer robot picks up a wafer from the corresponding input stack
+	\item Airlock's outer door opens
+	\item Robot drops wafer inside airlock
+	\item Airlock's outer door closes
+	\item Airlock's inner door opens
+	\item Inner robot picks up wafer from airlock
+	\item Inner robot drops wafer to lamp
+	\item Lamp turns on and projects the wafer
+\end{enumerate}
+
+\subsection{Wafer to output stack}
+\begin{enumerate}
+	\item Lamp turns off
+	\item Inner robot picks up wafer from lamp
+	\item Inner robot drops wafer inside airlock
+	\item Airlock's inner door closes
+	\item Airlock's outer door opens
+	\item Outer robot picks up wafer from airlock
+	\item Outer robot drops wafer in the corresponding output stack
+\end{enumerate}

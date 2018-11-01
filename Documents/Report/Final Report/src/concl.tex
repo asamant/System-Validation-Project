@@ -1,0 +1,10 @@
+This project established that modelling and verifying a fully-functional system takes quite some effort and is far more complicated than it seems initially, when its idea is still in the informal stage (semantic domain). In a nutshell, we can conclude that it takes formal verification and modelling methods in order to say with certainty that the system is logically sound, as otherwise many corner cases may be missed, given the nature of logic itself.
+
+\begin{itemize}
+\item We started our project with an informal discussion stage, in which we discussed the system and its components from a logical perspective, listing down the expected behaviour and the possible corner cases which would need to be tackled in the implementation phase. This phase involved drawing state diagrams by hand and thinking of all relevant state transitions.
+\item Once we had the mental model ready, we started with the process modelling on paper, in simple steps so as to understand how to translate the model to MCRL2 code. At this stage, things seemed clear enough and hence we proceeded with writing the MCRL2 code for our model.
+\item However, once we had the code ready, generating the LTS revealed a lot of lapses in our original conception of the system's logic. There were a lot of possible cases we hadn't thought of, and that was shown by the many deadlocks that surfaced in the LTS. This step was repeated a few times, and finally we were able to generate a model that was deadlock-free.
+\item Once we had the final model ready, we translated the requirements from plain text to $\mu$-calculus and verified the cases. This stage also revealed a few minor changes to be made to the MCRL2 code, and after that, we were able to verify the requirements correctly.
+\end{itemize}
+
+The main problem was the modelling part, since we had to think of the controllers from a parallel perspective as individual components interacting with the environment, rather than the system only as a sequence of steps to move wafers around. It was a good learning experience in formal methods for verification and modelling a system.

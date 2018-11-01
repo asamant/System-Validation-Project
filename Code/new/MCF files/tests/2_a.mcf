@@ -1,0 +1,1 @@
+[true*] [lamp_projectWafer . (!robot_pickUpWafer(LAMP))* . lamp_projectWafer] false

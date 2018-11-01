@@ -1,0 +1,1 @@
+[true*] forall rID: robotID . val(rID == R1 || rID == R2) => [robot_dropWafer(rID, O_AIRLOCK) . !robot_pickUpWafer(rID, O_AIRLOCK)* . outerRobot_moveToLocation(rID, matchRobotOutputStack(rID)) . robot_dropWafer(rID, OUT_STACK)] false

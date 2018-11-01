@@ -1,0 +1,91 @@
+
+This chapter presents the interactions that take place between the components we have described previously. The meaning of the data types mentioned below is as follows:
+
+\begin{enumerate}
+    \item (Input) Stack IDs: IS1, IS2
+    \item (Output) Stack IDs: OS1, OS2
+    \item Robot IDs: R1, R2, R3
+    \item Airlock IDs: A1, A2
+    \item Location IDs:\\
+    (Location IDs are used as a uniform datatype for certain interactions - for instance, the outer robots can move to three locations, viz. the correponding input and output stacks, and the airlock. The location IDs facilitate such interactions using the outer robot location IDs.)
+        \begin{enumerate}
+            \item Inner Robot Location IDs: I\_A1, I\_A2, LAMP, I\_ND\\
+            (Here, the \textit{I_ND} stands for non-deterministic, as will be explained later)
+            \item Outer Robot Location IDs: O\_AIRLOCK, INP\_STACK, OUT\_STACK
+        \end{enumerate}
+    \item Airlock Door Type: INNER, OUTER
+    \item Robot Action Type: PICKUP, DROP
+    \item Wafer Sensor State: WAFERPRESENT, NOWAFER
+    \item Wafer State: PROJECTED, UNPROJECTED
+    \item Door State: OPEN, CLOSED
+    \item Lamp State: ON, OFF
+    \item Input Stack State: EMPTY, NEMPTY
+    \item Output Stack State: FULL, NFULL
+\end{enumerate}
+
+Note that we have used overloaded methods in the code so as to avoid having confusing names for the same kind of actions.
+
+\section{External Interactions}
+
+The following actions describe the interactions that can be noticed when observing the system. These include any physical actions like the robots' picking up and dropping wafers, the airlocks' doors opening and closing, etc. If there are user actions, those are also ideally considered the external (inter)actions of the system. Communication taking place between the components is not included here, and will be dealt with in another section.\\
+
+\subsection{Actuator Actions}
+Here, the actions (acts) are of the form in which one of the parameters is the target of the action, and the other parameters are to characterize the physical action to be performed by the target.\\\\
+\begin{center}
+\begin{longtable}{| p{4.3cm}| p{4.3cm}| p{4.3cm}|}
+\hline
+airlock_setInnerDoorState (aID, doorState) & (aID: A1, A2 -- doorState: OPEN, CLOSED) & Set the airlock's inner door as open or closed. \\ \hline
+airlock_setOuterDoorState (aID, doorState) & (aID: A1, A2 -- doorState: OPEN, CLOSED) & Set the airlock's outer door as open or closed. \\ \hline
+robot_pickUpWafer (robotID, outerRobotLocationID) & (robotID: R1, R2 -- outerRobotLocationID: O_AIRLOCK, INP_STACK) & Pick up the wafer from the given location\\ \hline
+robot_pickUpWafer (innerRobotLocationID) & (innerRobotLocationID: I_A1, I_A2, LAMP) & Causes the inner robot R3 to pick up the wafer from the given location\\ \hline
+robot_dropWafer (robotID, outerRobotLocationID) & (robotID: R1, R2 -- outerRobotLocationID: O_AIRLOCK, OUT_STACK) & Cause the robot to drop the wafer at the given location\\ \hline
+robot_dropWafer (innerRobotLocationID) & (innerRobotLocationID: I_A1, I_A2, LAMP) & Causes the inner robot R3 to drop the wafer at the given location\\ \hline
+robot_checkInputStackState (stackID, inputStackState) & (stackID: IS1, IS2 -- inputStackState: EMPTY, NEMPTY) & Check whether the input stack is empty or not empty\\ \hline
+robot_checkOutputStackState (stackID, outputStackState) & (stackID: OS1, OS2 -- outputStackState: FULL, NFULL) & Check whether the output stack is full or not full\\ \hline
+outerRobot_moveToLocation (robotID, airlockID) & (robotID: R1, R2 -- airlockID: A1, A2) & Move an outer robot to an airlock\\ \hline
+outerRobot_moveToLocation (robotID, stackID) & (robotID: R1, R2 -- stackID: IS1, IS2, OS1, OS2) & Move an outer robot to an input/output stack\\ \hline
+innerRobot_moveToLocation (innerRobotLocationID) & (innerRobotLocationID: I_A1, I_A2, LAMP, I_ND) & Move the inner robot to A1, A2, the lamp, or to a non-deterministic (neutral) location\\ \hline
+lamp_projectWafer() & & External action of the lamp to project the wafer\\ \hline
+\end{longtable}
+\end{center}
+
+There are some points to note here - for the outer robot, only 3 locations are defined (O\_AIRLOCK, INP\_STACK, and OUT\_STACK) - this is because by the very definition of the outer robot, its movement is restricted to the corresponding locations (see the problem statement). Hence, we can simplify by defining only 3 locations - for instance, when we refer to R1's O\_AIRLOCK, it can be no other location but Airlock 1 (and likewise for the stacks). However, for the sake of making the meaning of moving to a location a bit more clear, we have included overloaded methods for the outer robot which take in airlockIDs and stackIDs as parameters too. (For instance, outerRobot\_moveToLocation takes in airlockID in one version, and stackID in the other)\\\\
+For the inner robot, there is a location defined as \textit{I_ND} - this is a \textit{non-deterministic} (neutral) state at which the robot starts and ends its wafer retrieval and placing cycle, in order to have non-determinism (i.e. when the robot is idle, and both airlocks have an unprojected wafer, the robot should have the non-deterministic quality of going to either).
+
+\subsection{User Actions}
+
+These actions are included so that in case any faulty action occurs, the user can intervene. These actions are limited to the input stacks becoming empty, and the output stacks becoming full, for simplicity. However, it is expected that the user's intervention isn't required to keep the system running otherwise.
+
+\begin{longtable}{| p{4.3cm}| p{4.3cm}| p{4.3cm}|}
+\hline
+	user_fillStack(stackID): & (stackID: IS1, IS2) & Fill the corresponding stack with wafers. \\ \hline
+	user_emptyStack(stackID): & (stackID: OS1, OS2) & Empty the corresponding output stack. \\ \hline
+%	user_repairAirlock(airlockID): & (airlockID: A1, A2) & Repair the airlock's broken door. \\ \hline
+\end{longtable}
+
+\section{Communication Interactions}
+    Communication between the several controllers of the system occurs in the form of send-receive interactions. Because this exchange happens at the same time, the send-receive pairs can be merged into a single interaction. The following list describes how data is exchanged between the system's controllers using the merged communication interactions.
+
+\begin{longtable}{| p{4.3cm}| p{4.3cm}| p{4.3cm}|}
+\hline
+comm_robotActionAck(robotID, robotActionType, outerRobotLocationID) & (robotID: R1, R2 -- robotActionType: PICKUP, DROP -- outerRobotLocationID: O_AIRLOCK, INP_STACK, OUT_STACK) & Communicate to a controller that the outer robot has performed the given action at the given location. \\ \hline
+comm_robotActionAck(robotActionType, innerRobotLocationID) & (robotActionType: PICKUP, DROP -- innerRobotLocationID: LAMP, I_A1, I_A2) & Communicate to a controller that the inner robot R3 has performed the given action at the given location. \\ \hline
+comm_inputStackState(stackID, inputStackState) & (stackID: IS1, IS2 -- inputStackState: EMPTY, NEMPTY) & Communicate to a controller the state of the input stack\\ \hline
+comm_outputStackState(stackID, outputStackState) & (stackID: OS1, OS2 -- outputStackState: FULL, NFULL) & Communicate to a controller the state of the output stack\\ \hline
+comm_airlockWaferProjectionState(airlockID, waferState) & (airlockID: A1, A2 -- waferState: PROJECTED, UNPROJECTED) & Communicate to a controller whether the wafer inside the airlock is projected or not\\ \hline
+comm_airlockDoorState (airlockID, airlockDoorType, doorState) & (airlockID: A1, A2 -- airlockDoorType: INNER, OUTER -- doorState: OPEN, CLOSED) & Communicate to a controller whether the airlock's inner/outer door is open/closed\\ \hline
+
+%comm_lampState (waferState) & (waferState: PROJECTED, UNPROJECTED & Communicate to a controller if a wafer in the lamp is projected or not\\ \hline
+\end{longtable}
+
+Similar to the external interactions, there are some methods in the communication actions that are overloaded for keeping the code clean and readable.
+
+%\section{Sensors AAAAAAAAAAAAAAAAAAAAAAAA CHECK IF REALLY NEEDED}
+
+%\begin{tabular}{ l l l }
+%  sense_inputStack(id, s): & (id: I1, I2 -- s: FULL, NFULL) & Check the input stack sensor. \\
+%  sense_outputStack(id, s): & (id: O1, O2 -- s: EMPTY, NEMPTY) & Check the output stack sensor. \\
+%  sense_lamp(s, hasW, ws): & (s: ON, OFF & Check the lamp sensor. \\
+%  & -- hasW: true, false & \\
+%  & -- ws: PROJECTED, UNPROJECTED) & \\
+%\end{tabular}

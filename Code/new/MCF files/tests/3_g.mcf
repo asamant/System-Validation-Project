@@ -1,0 +1,1 @@
+[true*] forall aID: airlockID . val(aID == A1 || aID == A2) => [robot_pickUpWafer(matchAirlockInnerRobotLocation(aID)) . !robot_dropWafer(LAMP)* . robot_dropWafer(matchAirlockInnerRobotLocation(aID)) ] false

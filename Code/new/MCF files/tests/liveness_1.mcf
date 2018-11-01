@@ -1,0 +1,1 @@
+[true*] forall rID: robotID . val(rID == R1 || rID == R2) => [robot_pickUpWafer(rID, INP_STACK)]<true* . lamp_projectWafer> true

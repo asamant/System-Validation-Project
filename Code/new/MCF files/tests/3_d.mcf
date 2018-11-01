@@ -1,0 +1,1 @@
+[true*] forall rID: robotID . val(rID == R1 || rID == R2) => [airlock_setOuterDoorState(matchRobotAirlock(rID), CLOSED) . (!airlock_setOuterDoorState(matchRobotAirlock(rID), OPEN))* . outerRobot_moveToLocation(rID, matchRobotAirlock(rID)) . robot_dropWafer(rID, O_AIRLOCK)] false

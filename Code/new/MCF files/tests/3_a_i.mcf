@@ -1,0 +1,1 @@
+[true*] forall rID: robotID . val(rID == R1 || rID == R2) => [outerRobot_moveToLocation(rID, matchRobotOutputStack(rID)) . robot_checkOutputStackState(matchRobotOutputStack(rID), FULL) . robot_dropWafer(rID, OUT_STACK)] false

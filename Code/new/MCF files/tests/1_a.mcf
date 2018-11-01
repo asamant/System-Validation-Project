@@ -1,0 +1,1 @@
+[true*] forall aID : airlockID . [airlock_setOuterDoorState(aID, OPEN) . (!(airlock_setOuterDoorState(aID, CLOSED)))* . airlock_setInnerDoorState(aID, OPEN)] false

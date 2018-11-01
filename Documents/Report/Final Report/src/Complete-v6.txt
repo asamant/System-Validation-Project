@@ -1,0 +1,271 @@
+% Robot-based wafer projection system model
+
+% Though we have modelled the input and the output stacks, and the lamp as controllers here, we haven't used them in the interactions for simplicity's sake. We've treated their respective actions as external actions.
+
+
+
+sort
+	% Unique identifiers for system components that have more than one instance
+	robotID 					= struct R1 | R2 | R3;
+	airlockID   				= struct A1 | A2;
+	stackID 					= struct IS1 | IS2 | OS1 | OS2;
+	innerRobotLocationID	= struct I_A1 | I_A2 | LAMP | I_ND; %I_ND = Non-deterministic
+	outerRobotLocationID	= struct O_AIRLOCK | INP_STACK | OUT_STACK;
+
+	% Types and states as required in communications
+	airlockDoorType		= struct INNER | OUTER;
+	robotActionType		= struct PICKUP | DROP | IDLE; % Maybe IDLE not needed
+	waferSensorState		= struct WAFERPRESENT | NOWAFER;
+	waferState				= struct PROJECTED | UNPROJECTED;
+	doorState				= struct OPEN | CLOSED;
+	lampState				= struct ON | OFF;
+	inputStackState			= struct EMPTY | NEMPTY;
+	outputStackState		= struct FULL | NFULL;
+	
+	
+	% All maps are defined as "match<component1><component2> = <component1> to <component2>"
+map
+
+	% Airlock -> Outer Robot
+	matchAirlockRobot:	airlockID -> robotID;
+
+	% Outer Robot ->  Airlock
+	matchRobotAirlock:	robotID -> airlockID;
+
+	% Input Stack -> Outer Robot
+	matchInputStackRobot:	stackID -> robotID;
+
+	% Outer Robot -> Input Stack
+	matchRobotInputStack:	robotID -> stackID;
+
+	% OutputStack -> Robot
+	matchOutputStackRobot:		stackID -> robotID;
+
+	% Robot -> OutputStack
+	matchRobotOutputStack:		robotID -> stackID;
+	
+	% Airlock -> Inner Robot Location
+	matchAirlockInnerRobotLocation:	airlockID -> innerRobotLocationID;
+
+eqn
+
+	% Airlock -> Robot
+	matchAirlockRobot(A1) = R1;
+	matchAirlockRobot(A2) = R2;
+
+	% Robot ->  Airlock
+	matchRobotAirlock(R1) = A1;
+	matchRobotAirlock(R2) = A2;
+
+	% Input Stack -> Robot
+	matchInputStackRobot(IS1) = R1;
+	matchInputStackRobot(IS2) = R2;
+
+	% Robot -> Input Stack
+	matchRobotInputStack(R1) = IS1;
+	matchRobotInputStack(R2) = IS2;
+
+	% Output Stack -> Robot
+	matchOutputStackRobot(OS1) = R1;
+	matchOutputStackRobot(OS2) = R2;
+
+	% Robot -> OutputStack
+	matchRobotOutputStack(R1) = OS1;
+	matchRobotOutputStack(R2) = OS2;
+	
+	% Airlock -> InnerRobotLocation
+	matchAirlockInnerRobotLocation(A1) = I_A1;
+	matchAirlockInnerRobotLocation(A2) = I_A2;
+
+act	
+	% External commands. Perhaps not needed.
+	user_fillStack		:	stackID;
+	user_emptyStack	:	stackID;		
+	
+	% External actions for the robot. Location is assumed as the robot's current location.
+	robot_pickUpWafer 	:	robotID	#	outerRobotLocationID; 
+	robot_dropWafer 		:	robotID	#	outerRobotLocationID;
+
+	robot_pickUpWafer 	:	innerRobotLocationID; 
+	robot_dropWafer 		:	innerRobotLocationID;
+	
+	robot_checkInputStackState		:	stackID	#	inputStackState;
+	robot_checkOutputStackState	:	stackID	#	outputStackState;
+	
+	outerRobot_moveToLocation	:	robotID	#	outerRobotLocationID;
+	outerRobot_moveToLocation	:	robotID	#	airlockID;
+	outerRobot_moveToLocation	:	robotID	#	stackID;
+	innerRobot_moveToLocation		:	innerRobotLocationID;
+	
+	% External actions for the airlocks to open/close their doors.
+	airlock_setInnerDoorState	:	airlockID	#	doorState;
+	airlock_setOuterDoorState	:	airlockID	#	doorState;
+	
+	% External action for the lamp to project the wafer.
+	lamp_projectWafer;
+
+	% Communication actions; may or may not be hidden.
+	
+	% For the outer robots
+	s_robotActionAck,
+	r_robotActionAck,
+	comm_robotActionAck	:	robotID	#	robotActionType	#	outerRobotLocationID;
+
+	% For the inner robot
+	s_robotActionAck,
+	r_robotActionAck,
+	comm_robotActionAck	:	robotActionType	#	innerRobotLocationID;
+	
+	s_inputStackState,
+	r_inputStackState,
+	comm_inputStackState	:	stackID	#	inputStackState;
+	
+	s_outputStackState,
+	r_outputStackState,
+	comm_outputStackState	:	stackID	#	outputStackState;
+
+	s_airlockWaferProjectionState,
+	r_airlockWaferProjectionState,
+	comm_airlockWaferProjectionState	:	airlockID	#	waferState;
+
+	s_airlockDoorState,
+	r_airlockDoorState,
+	comm_airlockDoorState	:	airlockID	#	airlockDoorType	#	doorState;	
+
+	% Sensors, as external actions. Perhaps not needed.
+	sense_inputStack	:		stackID	#	inputStackState;
+	sense_outputStack	:		stackID	#	outputStackState;
+	sense_airlock		:		airlockID	#	Bool;
+	sense_lamp			:		Bool		#	waferState;
+
+proc
+ 
+	%%%%%%%%%%%%%%%%%%%       AIRLOCK CONTROLLER   %%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	Airlock (aID: airlockID, waferSensorState: waferSensorState, projectionState: waferState, innerDoorState: doorState, outerDoorState: doorState) =
+	
+	% If an outer robot drops a wafer in the airlock, change the state of the airlock
+	(waferSensorState == NOWAFER && outerDoorState == OPEN) -> r_robotActionAck(matchAirlockRobot(aID), DROP, O_AIRLOCK) . airlock_setOuterDoorState(aID, CLOSED) . Airlock (waferSensorState = WAFERPRESENT, projectionState = UNPROJECTED, outerDoorState = CLOSED)
+
+	% If there is an unprojected wafer in the airlock and the inner door is closed, open it
+	+ (waferSensorState == WAFERPRESENT && projectionState == UNPROJECTED && innerDoorState == CLOSED) -> airlock_setInnerDoorState(aID, OPEN) . Airlock(innerDoorState = OPEN)
+	
+	% If robot R3 picks up the wafer from the airlock, change the state of the airlock
+	+ (waferSensorState == WAFERPRESENT && projectionState == UNPROJECTED && innerDoorState == OPEN) -> r_robotActionAck(PICKUP, matchAirlockInnerRobotLocation(aID)) . Airlock(waferSensorState = NOWAFER)
+	
+	% If robot R3 drops a projected wafer in the airlock, change the state of the airlock
+	+ (waferSensorState == NOWAFER && projectionState == UNPROJECTED && innerDoorState == OPEN) -> r_robotActionAck(DROP, matchAirlockInnerRobotLocation(aID)) . airlock_setInnerDoorState(aID, CLOSED) . Airlock(waferSensorState = WAFERPRESENT, projectionState = PROJECTED, innerDoorState = CLOSED)
+	
+	% If there is a projected wafer in the airlock, the inner door is closed, open it
+	+ (waferSensorState == WAFERPRESENT && projectionState == PROJECTED && innerDoorState == CLOSED) -> airlock_setOuterDoorState(aID, OPEN) . Airlock(outerDoorState = OPEN)
+	
+	% If an outer robot picks up the projected wafer, change the wafer sensor and wafer projected states
+	+ (waferSensorState == WAFERPRESENT && projectionState == PROJECTED && outerDoorState == OPEN) -> r_robotActionAck(matchAirlockRobot(aID), PICKUP, O_AIRLOCK) . Airlock (waferSensorState = NOWAFER, projectionState = UNPROJECTED)
+	
+	% Send the states of the airlock
+	% Wafer Projection state
+	+ s_airlockWaferProjectionState(aID, projectionState) . Airlock()
+	
+	% Inner door state
+	+ s_airlockDoorState(aID, INNER, innerDoorState) . Airlock()
+	
+	% Outer door state
+	+ s_airlockDoorState(aID, OUTER, outerDoorState) . Airlock();
+
+
+	%%%%%%%%%%%%%%%%%%%       OUTER ROBOT CONTROLLER   %%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+    OuterRobot(rID: robotID, hasWafer: Bool, location: outerRobotLocationID) =
+    % If the robot has no wafer, location is the corresponding input stack, then check stack; if it is empty, do nothing
+	(hasWafer == false && location == INP_STACK) -> robot_checkInputStackState(matchRobotInputStack(rID), EMPTY) . user_fillStack(matchRobotInputStack(rID)) . OuterRobot()
+	
+	% If the robot has no wafer, location is corresponding input stack and it's not empty, pick up a wafer
+	+ (hasWafer == false && location == INP_STACK) -> robot_checkInputStackState(matchRobotInputStack(rID), NEMPTY) . robot_pickUpWafer(rID, INP_STACK) . OuterRobot(hasWafer = true)
+	 
+	% If the robot has a wafer but the airlock outer door is closed, do nothing
+	+ (hasWafer == true && location == INP_STACK) -> r_airlockDoorState(matchRobotAirlock(rID), OUTER, CLOSED) . OuterRobot()
+	 
+	% If the robot has picked up a wafer, go to airlock if its outer door is open, and drop the wafer   
+	+ (hasWafer == true && location == INP_STACK) -> r_airlockDoorState(matchRobotAirlock(rID), OUTER, OPEN) . outerRobot_moveToLocation(rID, matchRobotAirlock(rID)) . robot_dropWafer(rID, O_AIRLOCK) . s_robotActionAck(rID, DROP, O_AIRLOCK) . OuterRobot(hasWafer = false, location = O_AIRLOCK)
+	  
+	% If the robot is at the airlock, and the wafer state is unprojected, do nothing  
+	+ (hasWafer == false && location == O_AIRLOCK) -> r_airlockWaferProjectionState(matchRobotAirlock(rID), UNPROJECTED) . OuterRobot()
+	
+	% If the robot is at the airlock, the outer door is open, and the wafer is projected, pick it up
+	+ (hasWafer == false && location == O_AIRLOCK) -> r_airlockDoorState(matchRobotAirlock(rID), OUTER, OPEN) . r_airlockWaferProjectionState(matchRobotAirlock(rID), PROJECTED) . robot_pickUpWafer(rID, O_AIRLOCK) . s_robotActionAck(rID, PICKUP, O_AIRLOCK) . outerRobot_moveToLocation(rID, matchRobotOutputStack(rID)) . OuterRobot(hasWafer = true, location = OUT_STACK)
+
+    % If the robot has a projected wafer, location is the corresponding output stack, then check stack; if it is not full, drop the wafer and move to the input stack
+	+ (hasWafer == true && location == OUT_STACK) -> robot_checkOutputStackState(matchRobotOutputStack(rID), NFULL) . robot_dropWafer(rID, OUT_STACK) . outerRobot_moveToLocation(rID, matchRobotInputStack(rID)) . OuterRobot(hasWafer = false, location = INP_STACK)
+	
+    % If the robot has a projected wafer, location is the corresponding output stack, then check stack; if it is full, do nothing
+	+ (hasWafer == true && location == OUT_STACK) -> robot_checkOutputStackState(matchRobotOutputStack(rID), FULL) . user_emptyStack(matchRobotOutputStack(rID)) . OuterRobot();
+
+	
+	%%%%%%%%%%%%%%%%%%%       INNER ROBOT CONTROLLER   %%%%%%%%%%%%%%%%%%%%%%%
+	
+	
+	InnerRobot (location: innerRobotLocationID, airlockCycle: airlockID, hasWafer: Bool, waferState: waferState) =
+
+	% If the robot is idle and airlock 1's or airlock 2's inner door is closed, do nothing
+	(location == I_ND && hasWafer == false) -> r_airlockDoorState(A1, INNER, CLOSED) . InnerRobot()
+	
+	+ (location == I_ND && hasWafer == false) -> r_airlockDoorState(A2, INNER, CLOSED) . InnerRobot()
+	
+	% If the robot is idle and airlock 1 has an unprojected wafer, go to airlock 1
+	+ (location == I_ND && hasWafer == false) -> r_airlockDoorState(A1, INNER, OPEN) . r_airlockWaferProjectionState(A1, UNPROJECTED) . innerRobot_moveToLocation(I_A1) . InnerRobot(location = I_A1, airlockCycle = A1) 
+	
+	% If the robot is at airlock 1, pick up the wafer and move to the lamp
+	+ (location == I_A1 && hasWafer == false && airlockCycle == A1) -> robot_pickUpWafer(I_A1) . s_robotActionAck (PICKUP, I_A1) . innerRobot_moveToLocation(LAMP) . InnerRobot(location = LAMP, hasWafer = true, waferState = UNPROJECTED)
+	
+	% If the robot is idle and airlock 2 has an unprojected wafer, go to airlock 2
+	+ (location == I_ND && hasWafer == false) -> r_airlockDoorState(A2, INNER, OPEN) . r_airlockWaferProjectionState(A2, UNPROJECTED) . innerRobot_moveToLocation(I_A2) . InnerRobot(location = I_A2, airlockCycle = A2) 
+	
+	% If the robot is at airlock 2, pick up the wafer and move to the lamp
+	+ (location == I_A2 && hasWafer == false && airlockCycle == A2) -> robot_pickUpWafer(I_A2) . s_robotActionAck (PICKUP, I_A2) . innerRobot_moveToLocation(LAMP) . InnerRobot(location = LAMP, hasWafer = true, waferState = UNPROJECTED)
+
+	% If the robot is at the lamp and has an unprojected wafer, drop it at the lamp
+	+ (location == LAMP && hasWafer == true && waferState == UNPROJECTED) -> robot_dropWafer(LAMP) . InnerRobot(hasWafer = false)
+	
+	% If the robot is at the lamp and does not have a wafer, pick it up from the lamp after projection
+	+ (location == LAMP && hasWafer == false) -> lamp_projectWafer . robot_pickUpWafer(LAMP) . InnerRobot(hasWafer = true, waferState = PROJECTED)
+	
+	% If the robot is at the lamp and has a projected wafer, move to the airlock
+	+ (location == LAMP  && waferState == PROJECTED && airlockCycle == A1) -> innerRobot_moveToLocation(I_A1) . InnerRobot(location = I_A1)
+	
+	% If the robot is at A1, drop the wafer, sense the door as closed, and move to a neutral location
+	+ (location == I_A1  && hasWafer == true && waferState == PROJECTED) -> robot_dropWafer(I_A1) . s_robotActionAck(DROP, I_A1) . InnerRobot(location = I_ND, hasWafer = false)
+	
+	% If the robot is at the lamp and has a projected wafer, move to the airlock
+	+ (location == LAMP  && waferState == PROJECTED && airlockCycle == A2) -> innerRobot_moveToLocation(I_A2) . InnerRobot(location = I_A2)
+	
+	% If the robot is at A2, drop the wafer, sense the door as closed, and move to a neutral location
+	+ (location == I_A2  && hasWafer == true && waferState == PROJECTED) -> robot_dropWafer(I_A2) . s_robotActionAck(DROP, I_A2) . InnerRobot(location = I_ND, hasWafer = false);
+
+init
+        hide({comm_robotActionAck, comm_inputStackState, comm_outputStackState, comm_airlockWaferProjectionState, comm_airlockDoorState},
+        allow({ user_fillStack , user_emptyStack ,
+        robot_pickUpWafer , robot_dropWafer, robot_checkInputStackState, robot_checkOutputStackState, outerRobot_moveToLocation,, innerRobot_moveToLocation,
+		airlock_setInnerDoorState, airlock_setOuterDoorState, 
+		lamp_projectWafer, 
+		comm_robotActionAck, comm_airlockWaferProjectionState,
+		comm_airlockDoorState},	
+	    
+        comm({ s_robotActionAck| r_robotActionAck -> comm_robotActionAck, s_inputStackState|r_inputStackState -> comm_inputStackState, s_outputStackState |r_outputStackState  -> comm_outputStackState , s_airlockWaferProjectionState|r_airlockWaferProjectionState  -> comm_airlockWaferProjectionState, s_airlockDoorState|r_airlockDoorState  -> comm_airlockDoorState},
+
+        OuterRobot(R1, false, INP_STACK) || OuterRobot(R2, false, INP_STACK)  ||
+		Airlock(A1, NOWAFER, UNPROJECTED, CLOSED, OPEN) || Airlock(A2, NOWAFER, UNPROJECTED, CLOSED, OPEN)  ||
+		InnerRobot(I_ND, A1, false, UNPROJECTED)
+		)
+	)
+);
+
+
+
+
+
+
+
+
+
